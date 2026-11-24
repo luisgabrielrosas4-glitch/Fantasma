@@ -1,0 +1,22 @@
+name: Demo Python
+on:
+  push:
+    paths:
+      - 'demo_python/**'
+      - '.github/workflows/demo-python.yml'
+  pull_request:
+    paths:
+      - 'demo_python/**'
+      - '.github/workflows/demo-python.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar soporte de pantalla virtual
+        run: sudo apt-get update && sudo apt-get install -y python3-tk xvfb xauth
+      - name: Pruebas de lógica y ventana
+        run: xvfb-run -a python3 -m unittest discover -s demo_python -v
