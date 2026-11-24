@@ -1,7 +1,8 @@
 """Agencia de espectros v0.2: interfaz de escritorio sin dependencias externas."""
 import tkinter as tk
 from pathlib import Path
-import random
+import time
+from motor_grafico import Motor
 from modelo import World, CASES, WALLS, WIDTH, HEIGHT
 
 T=32
@@ -24,18 +25,23 @@ class Game:
         self.paused=False
         self.board=None
         self.frame=0
+        self.last_time=time.monotonic()
+        self.move_clock=0.0
+        self.hud_signature=None
+        self.frame_dt=0.0
         self.buttons=[]
         root.title("Agencia de espectros | El espíritu que nunca vivió")
         root.resizable(False,False)
         self.cv=tk.Canvas(root,width=960,height=H,bg=BG,highlightthickness=0)
         self.cv.pack()
+        self.motor=Motor(self.cv)
         root.bind("<KeyPress>",self.press)
         root.bind("<KeyRelease>",lambda e:self.held.discard(e.keysym.lower()))
         root.bind("<FocusOut>",lambda e:self.held.clear())
         self.cv.bind("<Button-1>",self.click)
         self.world.tell("Tras sobrevivir a un accidente, Tomás escucha voces en el cine cerrado. Busca a Elena y Brizna.")
         self.render()
-        root.after(125,self.loop)
+        root.after(33,self.loop)
 
     def rect(self,x,y,w,h,fill,outline="",width=1):
         self.cv.create_rectangle(x,y,x+w,y+h,fill=fill,outline=outline,width=width)
@@ -55,66 +61,8 @@ class Game:
         self.text(x+w/2,y+h/2,title,10,MINT,"center",bold=True)
         self.buttons.append((x,y,w,h,key))
 
-    def floor(self):
-        w=self.world
-        a,b,c=COLORS[w.place]
-        rng=random.Random(8)
-        for y in range(HEIGHT):
-            for x in range(WIDTH):
-                edge=x in (0,WIDTH-1) or y in (0,HEIGHT-1)
-                self.rect(x*T,y*T,T,T,c if edge else (b if rng.randrange(5)==0 else a),c)
-                if not edge:self.line(x*T+3,y*T+29,x*T+29,y*T+29,fill=b)
-        if w.place=="cine":
-            self.rect(42,36,212,9,"#d0b29a","#423345")
-            for j in range(3):
-                for i in range(3):
-                    x,y=42+i*31,145+j*27
-                    self.rect(x,y,24,19,"#794c61","#3c2d40")
-                    self.rect(x+2,y+2,20,8,"#ad6a7a")
-            self.rect(372,39,232,6,"#9b7967")
-        elif w.place=="office":
-            self.rect(33,36,570,9,"#ac9574")
-            self.rect(100,144,153,68,"#8c695c","#c09c7c",2)
-            self.rect(108,152,137,52,"#a98270","#73554e")
-            for x in (276,310,344):
-                self.rect(x,230,28,19,"#5e4e5b","#a28e8f")
-                self.rect(x+4,234,20,8,"#c1ab98")
-        else:
-            for x in range(40,600,48):
-                self.rect(x,40,35,14,"#394a53","#84979b")
-            self.rect(32,320,576,12,"#293c45")
-            self.line(35,326,605,326,fill="#b9ad89",width=2)
-        if w.place!="office":
-            for x,y in WALLS:
-                self.rect(x*T,y*T,T,T,c,"#292536",2)
-                self.rect(x*T+3,y*T+3,26,10,b)
-                self.rect(x*T+3,y*T+17,26,10,b)
-        if w.ghost_mode:
-            ax,ay=w.anchor
-            r=w.spirit.radius*T
-            cx,cy=ax*T+16,ay*T+16
-            self.poly(cx-r,cy,cx,cy-r,cx+r,cy,cx,cy+r,fill="",outline="#95c8b6")
-            self.cv.create_line(cx-r,cy,cx,cy-r,cx+r,cy,cx,cy+r,cx-r,cy,fill="#95c8b6",dash=(4,5),width=2)
-
-    def actor(self,x,y,name,ghost=False,active=False,weak=False):
-        cx,cy=x*T+16,y*T+16
-        self.oval(cx-10,cy+10,20,5,"#332b38")
-        if ghost:
-            cy+=(self.frame//3)%3-1
-            color="#819a95" if weak else "#b1e6d4"
-            self.poly(cx-12,cy+9,cx-13,cy-5,cx-7,cy-13,cx+7,cy-13,cx+13,cy-5,cx+12,cy+9,cx+5,cy+6,cx,cy+14,cx-6,cy+7,fill=color,outline="#405d60")
-            if name=="Brizna":self.poly(cx-5,cy-12,cx-2,cy-21,cx+5,cy-12,fill="#9cceb1",outline="#3a5858")
-            self.rect(cx-6,cy-4,4,5,"#344852");self.rect(cx+3,cy-4,4,5,"#344852")
-            self.rect(cx-2,cy+5,5,2,"#63918a")
-        else:
-            self.rect(cx-8,cy-14,16,12,"#d9ae8f","#493846")
-            self.rect(cx-9,cy-17,18,5,"#4a3b42")
-            self.rect(cx-8,cy-2,16,14,"#b99570" if name=="Tomás" else "#809ba2","#493846")
-            self.rect(cx-6,cy+11,5,6,"#3b414c");self.rect(cx+2,cy+11,5,6,"#3b414c")
-            self.rect(cx-5,cy-8,3,3,"#443640");self.rect(cx+3,cy-8,3,3,"#443640")
-            if name=="Tomás":self.poly(cx-4,cy-1,cx,cy+6,cx+4,cy-1,fill="#e4d4b1")
-        if active:self.rect(x*T+1,y*T+1,30,30,"",GOLD,2)
-        self.text(cx,cy-23,name,8,MINT if ghost else "#f5d7b8","center")
+    def actor(self,x,y,name,ghost=False,active=False,weak=False,identity=None):
+        self.motor.actor(x,y,name,ghost,active,weak,identity)
 
     def prop(self,key,obj):
         x,y,name,kind=obj
@@ -124,7 +72,7 @@ class Game:
             if key=="brizna" and w.met:return
             if key=="client" and w.reports.get(w.place)=="complete":return
             if key=="guest" and w.guest_decision=="stayed" and w.active=="Mateo":return
-            self.actor(x,y,name.split(",")[0],kind=="ghost",weak=key=="guest" and not w.guest_decision)
+            self.actor(x,y,name.split(",")[0],kind=="ghost",weak=key=="guest" and not w.guest_decision,identity="npc:"+key)
         elif kind=="paper":
             self.rect(cx-15,cy-8,30,21,"#654f46","#322a36")
             self.rect(cx-15,cy-9,30,6,"#a38268")
@@ -162,17 +110,38 @@ class Game:
 
     def render(self):
         w=self.world
-        self.cv.delete("all");self.buttons.clear();self.floor()
-        for k,o in w.objects.items():self.prop(k,o)
-        self.actor(w.x,w.y,"Tomás",active=not w.ghost_mode)
-        if w.met:self.actor(w.gx,w.gy,w.active,True,w.ghost_mode,w.spirit.stability<40)
+        self.motor.begin(w.place,self.frame_dt)
+        self.frame_dt=0.
+        before=set(self.cv.find_all())
+        if w.ghost_mode:self.motor.anchor(w)
+        # Orden Y: los personajes pueden aparecer por delante o detrás de muebles.
+        items=[(o[1],0,k,o) for k,o in w.objects.items()]
+        items.append((w.y,1,"human",None))
+        if w.met:items.append((w.gy,2,"companion",None))
+        for _,layer,k,o in sorted(items,key=lambda e:(e[0],e[1])):
+            if layer==0:self.prop(k,o)
+            elif layer==1:self.actor(w.x,w.y,"Tomás",active=not w.ghost_mode,identity="human")
+            else:self.actor(w.gx,w.gy,w.active,True,w.ghost_mode,w.spirit.stability<40,identity="companion:"+w.active)
         k=self.target()
         if k:
             x,y,*_=w.objects[k]
             self.rect(x*T+1,y*T+1,30,30,"",MINT,2)
+        self.motor.finish(before)
+        # El HUD solo se reconstruye si cambian los datos que muestra.
+        signature=(w.place,w.met,w.ghost_mode,w.active,int(w.spirit.energy),
+                   int(w.spirit.stability),w.spirit.bond,w.spirit.home,
+                   tuple(w.reports.items()),w.home_open,
+                   tuple((key,tuple(value)) for key,value in w.facts.items()),
+                   tuple((key,tuple(value)) for key,value in w.physical.items()),
+                   tuple(w.spirits),w.guest_decision,int(w.wanderer.stability),
+                   k,w.objects[k][2] if k else "",tuple(w.log[-2:]))
+        if signature==self.hud_signature:return
+        self.hud_signature=signature
+        self.cv.delete("hud");self.buttons.clear()
+        before=set(self.cv.find_all())
         self.rect(0,0,MW,30,BG)
         self.text(11,5,NAMES[w.place],13,GOLD,bold=True)
-        self.text(MW-10,8,"VERSIÓN 0.2",9,MINT,"ne")
+        self.text(MW-10,8,"MOTOR 0.3",9,MINT,"ne")
         self.rect(MW,0,320,H,"#282536")
         self.text(654,13,"AGENCIA DE ESPECTROS",14,MINT,bold=True)
         self.text(654,43,"Control: "+(w.active if w.ghost_mode else "Tomás"),11,GOLD)
@@ -217,6 +186,8 @@ class Game:
         self.rect(12,469,616,118,"#2d293a","#51485d")
         self.text(22,480,"BITÁCORA",10,GOLD,bold=True)
         for i,msg in enumerate(w.log[-2:]):self.text(22,502+i*38,msg,10,INK,width=590)
+        self.motor.capture("hud",before)
+        self.cv.tag_raise("hud")
 
     def command(self,key):
         w=self.world
@@ -225,7 +196,7 @@ class Game:
             if k:w.act(k,key=="space")
             else:w.tell("No hay objeto al alcance.")
         elif key=="q":w.toggle();self.choice=None
-        elif key=="r":w.recall();self.choice=None
+        elif key=="r":w.recall();self.choice=None;self.motor.reset_motion()
         elif key=="f":
             cs=w.nearby();k=self.target()
             if cs:self.choice=cs[(cs.index(k)+1)%len(cs)]
@@ -238,7 +209,7 @@ class Game:
             try:w.save(SAVE);w.tell("Partida guardada.")
             except OSError as ex:w.tell("No se pudo guardar: "+str(ex))
         elif key=="f9":
-            try:self.world=World.load(SAVE);self.world.tell("Partida cargada.");self.choice=None
+            try:self.world=World.load(SAVE);self.world.tell("Partida cargada.");self.choice=None;self.motor.reset_motion()
             except (OSError,ValueError,TypeError,KeyError) as ex:w.tell("No se pudo cargar: "+str(ex))
         elif key=="tab":self.open_board();return
         self.render()
@@ -251,11 +222,22 @@ class Game:
         if key=="tab":return "break"
 
     def loop(self):
+        now=time.monotonic()
+        dt=min(.15,max(0.,now-self.last_time))
+        self.last_time=now
         if not self.paused:
-            for key,dx,dy in [("w",0,-1),("up",0,-1),("s",0,1),("down",0,1),("a",-1,0),("left",-1,0),("d",1,0),("right",1,0)]:
-                if key in self.held:self.world.move(dx,dy);self.choice=None;break
-            self.world.tick(.125);self.frame+=1;self.render()
-        self.root.after(125,self.loop)
+            self.move_clock+=dt
+            # La lógica sigue avanzando en casillas a ~8 pasos/s.
+            if self.move_clock>=.125:
+                self.move_clock-=.125
+                for key,dx,dy in [("w",0,-1),("up",0,-1),("s",0,1),("down",0,1),("a",-1,0),("left",-1,0),("d",1,0),("right",1,0)]:
+                    if key in self.held:self.world.move(dx,dy);self.choice=None;break
+            self.world.tick(dt)
+            self.frame_dt=dt
+            self.frame+=1
+            self.render()
+        else:self.move_clock=0.
+        self.root.after(33,self.loop)
 
     def click(self,e):
         if self.paused:return
@@ -271,7 +253,7 @@ class Game:
         top.title("Expedientes");top.configure(bg=BG)
         top.geometry("740x650");top.transient(self.root);top.grab_set()
         def close():
-            top.grab_release();top.destroy();self.board=None;self.paused=False;self.render()
+            top.grab_release();top.destroy();self.board=None;self.paused=False;self.last_time=time.monotonic();self.render()
         top.protocol("WM_DELETE_WINDOW",close);top.bind("<Escape>",lambda e:close())
         case=tk.StringVar(value=self.world.place if self.world.place in CASES else ("station" if self.world.home_open else "cine"))
         header=tk.Frame(top,bg=BG);header.pack(fill="x",padx=14,pady=12)

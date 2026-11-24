@@ -168,7 +168,25 @@ class Tests(unittest.TestCase):
         root=tk.Tk()
         try:
             g=Game(root);root.update()
-            self.assertGreater(len(g.cv.find_all()),100)
+            self.assertTrue(g.cv.find_withtag("background"))
+            self.assertTrue(g.cv.find_withtag("world"))
+            self.assertTrue(g.cv.find_withtag("hud"))
+            first=g.cv.find_withtag("background")
+            hud=g.cv.find_withtag("hud")
+            count=len(g.cv.find_all())
+            for _ in range(12):g.render()
+            self.assertEqual(g.cv.find_withtag("background"),first)
+            self.assertEqual(g.cv.find_withtag("hud"),hud)
+            self.assertEqual(len(g.cv.find_all()),count)
+            self.assertEqual(g.motor.background_builds,1)
+            # Switching scenes loads exactly one new cached map.
+            g.world.place="office"
+            g.render()
+            self.assertEqual(g.motor.background_builds,2)
+            g.world.place="cine"
+            g.render()
+            self.assertEqual(g.motor.background_builds,2)
+            self.assertEqual(len(g.motor.maps),2)
             g.open_board();root.update()
             self.assertTrue(g.paused)
         finally:root.destroy()
