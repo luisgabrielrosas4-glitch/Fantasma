@@ -1,46 +1,39 @@
-# Agencia de espectros — demo Python
+# Agencia de espectros — prototipo Python 0.2
 
-Prototipo gráfico independiente para evaluar el caso **El reloj del conserje**, antes de construir el juego en Godot. No es la versión definitiva ni una exportación Android.
+La versión anterior ha sido reemplazada en main. Sigue siendo un prototipo de escritorio con Tkinter y no una aplicación Android. No requiere dependencias de pip. Python 3.10+ con Tcl/Tk.
 
-## Abrir en Windows
-
-Instala Python 3.10 o posterior desde https://www.python.org/downloads/ (con Tcl/Tk, incluido en el instalador habitual). Descarga el repositorio, descomprime y abre una terminal en la carpeta Fantasma.
-
-```powershell
-py demo_python/main.py
+## Iniciar
+Descarga el ZIP de main, extráelo y abre Iniciar_demo.bat en Windows, o ejecuta:
+```
+python demo_python/main.py
 ```
 
-También puedes ejecutar `Iniciar_demo.bat`. No se necesita instalar pygame ni ninguna otra dependencia de pip. En Linux puede hacer falta python3-tk.
+## Campaña inicial
+Tomás es un expolicía retirado que, tras sobrevivir a un accidente, ve espíritus. En el Cine Aurora conoce a Brizna, un espíritu nacido de las emociones del lugar, nunca humano. Ayuda a Elena a descubrir qué sucedió en la última función. La resolución crea el vínculo con Tomás y permite salir del cine. Visita la agencia, establece el ancla del hogar junto a su mesa y explora el segundo expediente en la estación. Mateo es un espíritu errante debilitado; al resolver su caso puedes invitarlo o despedirte.
 
 ## Controles
-
 | Tecla | Acción |
 |---|---|
-| WASD / flechas | Mover al detective |
-| E | Observar, documentar o usar anclas |
-| Espacio | Poseer el objeto seleccionado |
-| Q | Cambiar objetivo cercano (también clic) |
-| Tab / B | Tablero, pausa e informe |
-| R | Regresar al despacho y comenzar otra visita conservando pruebas |
+| WASD o flechas | Mover |
+| E | Interactuar |
+| Q | Cambiar entre Tomás y el compañero |
+| Espacio | Poder del espíritu |
+| F | Cambiar objetivo cercano |
+| R | Regresar al ancla |
+| TAB | Tablero de evidencias (pausa) |
+| C | Seleccionar compañero en la oficina |
+| J / P | Invitar a Mateo / despedirse de él, junto a él tras su caso |
 | F5 / F9 | Guardar / cargar |
 
-Explora la casa y la portería; observa las rutinas, consigue pruebas y comprueba tu hipótesis. La radio distrae al conserje, el reloj altera su rutina y el cuadro permite ver el interior del armario cuando está abierto. Las acciones consumen ectoplasma y pueden levantar sospechas. No necesitas poseer objetos para resolver el caso. El tablero permite archivar conclusiones equivocadas y rectificarlas.
+## Reglas
+Los fantasmas leen documentos visibles y escuchan; no recuperan recuerdos ni leen mentes. No extraen objetos de cajas cerradas. El detective dialoga, consigue acceso y recupera pruebas físicas. Un vínculo amplía el radio de exploración; la estabilidad cae al salir de él y provoca el regreso al agotarse. La energía es distinta y financia los poderes. El radio tiene un límite exterior adicional de tres casillas. La oficina puede convertirse en hogar/ancla; Tomás es ancla móvil cuando existe vínculo. Un errante sin ancla pierde recursos gradualmente. No se bloquea la campaña por dejar descansar a Mateo.
 
-## Alcance
+El tablero distingue observaciones y evidencias físicas; no basta adivinar la hipótesis. En el segundo caso el compañero averigua el casillero por dos rutas: hablar con Silvia o leer el libro detrás de la puerta. Tomás debe recuperar las pruebas. Los poderes de Brizna y Mateo tienen costes y duraciones diferentes, todavía provisionales.
 
-Un expediente, dos rutas, dos NPC con rutinas discretas, cuatro evidencias materiales o testimoniales más la acusación inicial, escenario 2D, arte provisional dibujado mediante código, guardado JSON local. Los NPC cambian de posición por fases; no hay navegación animada, mundo completo, audio, ni campaña. La interfaz Tkinter es solo para validar en PC: las reglas de modelo.py están separadas para reimplementarlas en Godot/GDScript y hacer una interfaz táctil independiente. Android no está implementado.
+## Estado y pruebas
+Dos casos, tres mapas, arte dibujado mediante código, rutinas simples, progreso y guardado JSON local (v2, incompatible con el guardado antiguo; no lo borra). No incluye todavía campaña completa, assets finales, audio, exportación Android ni gestión avanzada. La lógica está separada de Tkinter para su futura adaptación a Godot.
 
-## Pruebas
-
-```powershell
-py -m unittest discover -s demo_python -v
 ```
-
-En Linux sin pantalla, la prueba gráfica se omite; con Xvfb se puede ejecutar mediante `xvfb-run -a python3 -m unittest discover -s demo_python -v`. Incluye rutas de paciencia e intervención, bloqueo, recuperación, informe incorrecto, guardado y 10 000 acciones simuladas. La diversión y legibilidad requieren prueba humana.
-
-## Archivos
-
-- demo_python/modelo.py: reglas y persistencia.
-- demo_python/main.py: vista, entradas y tablero.
-- demo_python/test_demo.py: pruebas.
-- Iniciar_demo.bat: acceso para Windows.
+python -m unittest discover -s demo_python -v
+```
+Pruebas de campaña, reclutamiento y despedida, alcance, recuperación, lectura, evidencias, guardado, simulación de 10 000 acciones y arranque gráfico. CI existente con Xvfb.

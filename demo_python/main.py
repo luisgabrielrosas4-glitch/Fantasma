@@ -1,307 +1,312 @@
-"""Demo gráfica de Agencia de espectros (Python 3, Tkinter)."""
+"""Agencia de espectros v0.2: interfaz de escritorio sin dependencias externas."""
 import tkinter as tk
-from tkinter import messagebox
 from pathlib import Path
-import math
 import random
-from modelo import World, OBJECTS, CLUES, VERDICTS
+from modelo import World, CASES, WALLS, WIDTH, HEIGHT
 
-W,H,T = 960,610,32
-MW,MH = 704,416
-BG = "#181525"
-INK = "#dfd5d2"
-MINT = "#a8e8d3"
-GOLD = "#e7b67d"
-SAVE = Path.home()/".agencia_espectros_demo.json"
-LABELS = {"lampara":"Lámpara", "radio":"Radio", "registro":"Registro", "armario":"Armario",
-          "cuadro":"Cuadro", "sofa":"Sofá", "archivo":"Archivo", "escritorio":"Escritorio",
-          "ancla1":"Ancla", "ancla2":"Ancla", "reloj":"Reloj", "puerta":"Puerta"}
+T=32
+MW=WIDTH*T
+H=600
+BG="#181825"
+INK="#e8e0d5"
+MINT="#afe1ce"
+GOLD="#dfb57e"
+SAVE=Path.home()/".agencia_espectros_v2.json"
+NAMES={"cine":"Cine Aurora","office":"Agencia de espectros","station":"Estación del barrio"}
+COLORS={"cine":("#594552","#725764","#382f40"),"office":("#675447","#866e58","#413747"),"station":("#465962","#5c7279","#2c3945")}
 
 class Game:
-    def __init__(self, root):
+    def __init__(self,root):
         self.root=root
         self.world=World()
-        self.root.title("Agencia de espectros | El reloj del conserje")
-        self.root.resizable(False, False)
-        self.cv=tk.Canvas(root,width=W,height=H,bg=BG,highlightthickness=0)
-        self.cv.pack()
-        self.choice=None
         self.held=set()
+        self.choice=None
         self.paused=False
         self.board=None
         self.frame=0
-        self.root.bind("<KeyPress>", self.press)
-        self.root.bind("<KeyRelease>", self.release)
-        self.root.bind("<FocusOut>", lambda e:self.held.clear())
+        self.buttons=[]
+        root.title("Agencia de espectros | El espíritu que nunca vivió")
+        root.resizable(False,False)
+        self.cv=tk.Canvas(root,width=960,height=H,bg=BG,highlightthickness=0)
+        self.cv.pack()
+        root.bind("<KeyPress>",self.press)
+        root.bind("<KeyRelease>",lambda e:self.held.discard(e.keysym.lower()))
+        root.bind("<FocusOut>",lambda e:self.held.clear())
         self.cv.bind("<Button-1>",self.click)
-        self.world.tell("Un espíritu acusa a su hermano de robar una carta. Investiga antes de acusar.")
+        self.world.tell("Tras sobrevivir a un accidente, Tomás escucha voces en el cine cerrado. Busca a Elena y Brizna.")
         self.render()
-        self.root.after(100,self.motion)
-        self.root.after(1000,self.tick)
+        root.after(125,self.loop)
 
     def rect(self,x,y,w,h,fill,outline="",width=1):
-        return self.cv.create_rectangle(x,y,x+w,y+h,fill=fill,outline=outline,width=width)
-    def line(self,*coords,fill,width=1):
-        self.cv.create_line(*coords,fill=fill,width=width)
+        self.cv.create_rectangle(x,y,x+w,y+h,fill=fill,outline=outline,width=width)
+    def line(self,*p,fill,width=1,dash=None):
+        self.cv.create_line(*p,fill=fill,width=width,dash=dash)
+    def oval(self,x,y,w,h,fill,outline=""):
+        self.cv.create_oval(x,y,x+w,y+h,fill=fill,outline=outline)
+    def poly(self,*p,fill,outline=""):
+        self.cv.create_polygon(*p,fill=fill,outline=outline)
     def text(self,x,y,s,size=10,color=INK,anchor="nw",width=0,bold=False):
-        self.cv.create_text(x,y,text=s,fill=color,font=("Consolas",size,"bold" if bold else "normal"),anchor=anchor,width=width)
-    def ellipse(self,x,y,w,h,color,outline=""):
-        self.cv.create_oval(x,y,x+w,y+h,fill=color,outline=outline)
-    def poly(self,*pts,fill,outline=""):
-        self.cv.create_polygon(*pts,fill=fill,outline=outline)
+        self.cv.create_text(x,y,text=s,fill=color,font=("Segoe UI",size,"bold" if bold else "normal"),anchor=anchor,width=width)
     def bar(self,x,y,w,value,color):
-        self.rect(x,y,w,8,"#312a42")
-        self.rect(x,y,max(0,int(w*value/100)),8,color)
+        self.rect(x,y,w,8,"#3c3648")
+        self.rect(x,y,int(w*max(0,min(100,value))/100),8,color)
+    def button(self,x,y,w,h,title,key):
+        self.rect(x,y,w,h,"#3e3a4f","#655d74")
+        self.text(x+w/2,y+h/2,title,10,MINT,"center",bold=True)
+        self.buttons.append((x,y,w,h,key))
 
     def floor(self):
-        colors = ["#473c48","#4c414b","#50434c","#493e48"]
-        rng=random.Random(7)
-        for y in range(2,12):
-            for x in range(1,21):
-                c=colors[rng.randrange(len(colors))]
-                if y>=9 and x<=10: c=["#46504b","#49574e","#414b45"][rng.randrange(3)]
-                self.rect(x*T,y*T,T,T,c,"#3c3540")
-                if rng.randrange(4)==0:
-                    self.line(x*T+5,y*T+24,x*T+12,y*T+24,fill="#5a4b51")
-        # Exterior, room partitions and doorways. Spectral movement crosses interior walls.
-        for x,y,w,h in [(0,32,704,32),(0,64,32,320),(672,64,32,320),(0,384,704,32),
-                        (352,64,32,96),(352,192,32,128),(352,352,32,32)]:
-            self.rect(x,y,w,h,"#33293b","#221d2d")
-            for i in range(x,x+w,32):
-                for j in range(y,y+h,16):
-                    self.rect(i+2,j+2,27,11,"#403347","#514154")
-        self.rect(32,32,320,27,"#583c4c")
-        self.rect(384,32,288,27,"#433849")
-        self.text(44,38,"CASA DE LOS RUIZ",11,GOLD,bold=True)
-        self.text(395,38,"PORTERÍA",11,GOLD,bold=True)
-        self.text(39,365,"PATIO / ARCHIVO",9,"#b1bca1")
-        # carpet and courtyard
-        self.rect(80,139,220,112,"#664151","#916178",2)
-        self.rect(87,146,206,98,"#795063","#5b3b4b",2)
-        for x in range(100,280,24):
-            self.poly(x,151,x+5,157,x,163,x-5,157,fill="#b38a83")
-            self.poly(x,229,x+5,235,x,241,x-5,235,fill="#b38a83")
-        self.rect(400,125,244,3,"#77615f")
-        for x in [52,331,409,634]:
-            self.rect(x,70,22,34,"#29293a","#ac8173")
-            self.rect(x+4,74,14,26,"#a56d77")
-            self.line(x+11,74,x+11,100,fill="#453646")
-            self.line(x+4,87,x+18,87,fill="#453646")
-        for x,y in [(38,268),(317,273),(648,320)]:
-            self.rect(x,y+17,19,11,"#9e664e")
-            self.poly(x+9,y+22,x+2,y+4,x+8,y+10,x+12,y,x+14,y+11,x+20,y+6,fill="#78967a")
-        if self.world.blocked:
-            self.rect(352,160,32,32,"#9d485a","#f1b0ab")
-            self.text(368,176,"×",15,"#ffe2ce","center",bold=True)
-        else:
-            self.rect(352,160,32,32,"#927260","#654e49")
-
-    def furniture(self,key,px,py):
-        x,y=px-14,py-12
-        r=self.rect
-        if key in ("escritorio","registro","archivo"):
-            r(x-3,y,34,23,"#503846","#2b2433")
-            r(x-3,y,34,7,"#9f705d")
-            r(x+2,y+9,10,7,"#765348")
-            r(x+15,y+9,10,7,"#765348")
-            r(x+8,y-2,13,9,"#e5c6a0")
-            self.line(x+10,y+1,x+18,y+1,fill="#95766a")
-            if key=="escritorio" and not self.world.lamp:
-                r(x+8,y-2,13,9,"#67535b")
-        elif key=="lampara":
-            if self.world.lamp:
-                self.ellipse(px-25,py-23,50,46,"#887052")
-            r(x+13,y+10,3,11,"#bb9e76")
-            r(x+6,y+20,17,4,"#7b594b")
-            self.poly(x+8,y,x+22,y,x+27,y+13,x+3,y+13,fill="#ebc17b" if self.world.lamp else "#a18b83",outline="#423340")
-        elif key=="radio":
-            r(x,y+2,29,21,"#926b59","#352a38")
-            r(x+4,y+5,14,13,"#40313e")
-            for a in range(3): self.line(x+7,y+8+a*4,x+15,y+8+a*4,fill="#ad8a78")
-            self.ellipse(x+20,y+6,5,5,GOLD)
-            self.line(x+20,y+1,x+26,y-8,fill="#bca5a1")
-            if self.world.distraction: self.text(px,py-20,"♪",13,MINT,"center")
-        elif key=="armario":
-            r(x-4,y-12,36,40,"#583e49","#292530")
-            r(x-2,y-9,15,33,"#926657")
-            r(x+16,y-9,14,33,"#926657")
-            if self.world.cabinet_open:
-                r(x+1,y-8,27,30,"#362c3e")
-                r(x+3,y+7,24,3,"#ab8068")
-                r(x+10,y-2,12,8,"#e4c59e")
-            else:
-                r(x+12,y+6,3,5,GOLD);r(x+18,y+6,3,5,GOLD)
-        elif key=="cuadro":
-            r(x,y-6,28,29,"#b58762","#332b38",2)
-            r(x+4,y-2,20,21,"#554b63")
-            self.poly(x+5,y+16,x+13,y+4,x+18,y+10,x+23,y+1,x+23,y+18,fill="#819580")
-        elif key=="sofa":
-            r(x-15,y-2,55,28,"#443345","#2f2636")
-            r(x-11,y+2,47,13,"#996477")
-            r(x-11,y+16,47,7,"#775165")
-            r(x-14,y+7,7,17,"#ab7884");r(x+31,y+7,7,17,"#ab7884")
-        elif key.startswith("ancla"):
-            self.poly(px,py-13,px+9,py,px,py+13,px-9,py,fill="#6eaea2" if key not in self.world.anchors else "#5b5360",outline="#bfdfc9")
-            r(px-4,py-4,8,8,MINT if key not in self.world.anchors else "#7a707b")
-        elif key=="reloj":
-            self.ellipse(x+3,y-2,23,23,"#a98066","#30283a")
-            self.ellipse(x+7,y+2,15,15,"#dcc7aa")
-            self.line(px,py-2,px+4,py+2,fill="#4b3642")
-            self.line(px,py-2,px,py-8,fill="#4b3642")
-
-    def sprite(self,x,y,who):
-        cx,cy=x*T+16,y*T+16
-        self.ellipse(cx-10,cy+10,20,7,"#312938")
-        if who=="ghost":
-            off=(self.frame//2)%3-1
-            cy+=off
-            self.poly(cx-10,cy-2,cx-8,cy-13,cx+8,cy-13,cx+11,cy-2,cx+10,cy+10,cx+4,cy+8,cx,cy+13,cx-5,cy+9,cx-11,cy+12,fill="#a6e1d0",outline="#263b42")
-            self.rect(cx-7,cy-17,14,6,"#42364d")
-            self.rect(cx-13,cy-12,26,4,"#594259")
-            self.rect(cx-6,cy-5,4,5,"#2d3443")
-            self.rect(cx+3,cy-5,4,5,"#2d3443")
-            self.poly(cx-9,cy+2,cx-4,cy+2,cx,cy+8,cx+6,cy+2,cx+10,cy+3,cx+8,cy+11,cx-8,cy+11,fill="#5e4a68")
-        else:
-            color="#7593ac" if who=="Julián" else "#aa788b"
-            self.rect(cx-7,cy-12,14,11,"#d9ab8d","#392d38")
-            self.rect(cx-9,cy-15,18,5,"#51404a")
-            self.rect(cx-8,cy-1,16,12,color,"#392d38")
-            self.rect(cx-6,cy+11,5,6,"#403448");self.rect(cx+2,cy+11,5,6,"#403448")
-            self.rect(cx-4,cy-7,2,2,"#3a303a");self.rect(cx+3,cy-7,2,2,"#3a303a")
-            self.text(cx,cy-20,who,8,"#f4d7bd","center")
-
-    def candidates(self):
         w=self.world
-        return sorted((k for k in OBJECTS if w.near(k)),key=lambda k: (abs(w.x-OBJECTS[k][0])+abs(w.y-OBJECTS[k][1]),k))
+        a,b,c=COLORS[w.place]
+        rng=random.Random(8)
+        for y in range(HEIGHT):
+            for x in range(WIDTH):
+                edge=x in (0,WIDTH-1) or y in (0,HEIGHT-1)
+                self.rect(x*T,y*T,T,T,c if edge else (b if rng.randrange(5)==0 else a),c)
+                if not edge:self.line(x*T+3,y*T+29,x*T+29,y*T+29,fill=b)
+        if w.place=="cine":
+            self.rect(42,36,212,9,"#d0b29a","#423345")
+            for j in range(3):
+                for i in range(3):
+                    x,y=42+i*31,145+j*27
+                    self.rect(x,y,24,19,"#794c61","#3c2d40")
+                    self.rect(x+2,y+2,20,8,"#ad6a7a")
+            self.rect(372,39,232,6,"#9b7967")
+        elif w.place=="office":
+            self.rect(33,36,570,9,"#ac9574")
+            self.rect(100,144,153,68,"#8c695c","#c09c7c",2)
+            self.rect(108,152,137,52,"#a98270","#73554e")
+            for x in (276,310,344):
+                self.rect(x,230,28,19,"#5e4e5b","#a28e8f")
+                self.rect(x+4,234,20,8,"#c1ab98")
+        else:
+            for x in range(40,600,48):
+                self.rect(x,40,35,14,"#394a53","#84979b")
+            self.rect(32,320,576,12,"#293c45")
+            self.line(35,326,605,326,fill="#b9ad89",width=2)
+        if w.place!="office":
+            for x,y in WALLS:
+                self.rect(x*T,y*T,T,T,c,"#292536",2)
+                self.rect(x*T+3,y*T+3,26,10,b)
+                self.rect(x*T+3,y*T+17,26,10,b)
+        if w.ghost_mode:
+            ax,ay=w.anchor
+            r=w.spirit.radius*T
+            cx,cy=ax*T+16,ay*T+16
+            self.poly(cx-r,cy,cx,cy-r,cx+r,cy,cx,cy+r,fill="",outline="#95c8b6")
+            self.cv.create_line(cx-r,cy,cx,cy-r,cx+r,cy,cx,cy+r,cx-r,cy,fill="#95c8b6",dash=(4,5),width=2)
+
+    def actor(self,x,y,name,ghost=False,active=False,weak=False):
+        cx,cy=x*T+16,y*T+16
+        self.oval(cx-10,cy+10,20,5,"#332b38")
+        if ghost:
+            cy+=(self.frame//3)%3-1
+            color="#819a95" if weak else "#b1e6d4"
+            self.poly(cx-12,cy+9,cx-13,cy-5,cx-7,cy-13,cx+7,cy-13,cx+13,cy-5,cx+12,cy+9,cx+5,cy+6,cx,cy+14,cx-6,cy+7,fill=color,outline="#405d60")
+            if name=="Brizna":self.poly(cx-5,cy-12,cx-2,cy-21,cx+5,cy-12,fill="#9cceb1",outline="#3a5858")
+            self.rect(cx-6,cy-4,4,5,"#344852");self.rect(cx+3,cy-4,4,5,"#344852")
+            self.rect(cx-2,cy+5,5,2,"#63918a")
+        else:
+            self.rect(cx-8,cy-14,16,12,"#d9ae8f","#493846")
+            self.rect(cx-9,cy-17,18,5,"#4a3b42")
+            self.rect(cx-8,cy-2,16,14,"#b99570" if name=="Tomás" else "#809ba2","#493846")
+            self.rect(cx-6,cy+11,5,6,"#3b414c");self.rect(cx+2,cy+11,5,6,"#3b414c")
+            self.rect(cx-5,cy-8,3,3,"#443640");self.rect(cx+3,cy-8,3,3,"#443640")
+            if name=="Tomás":self.poly(cx-4,cy-1,cx,cy+6,cx+4,cy-1,fill="#e4d4b1")
+        if active:self.rect(x*T+1,y*T+1,30,30,"",GOLD,2)
+        self.text(cx,cy-23,name,8,MINT if ghost else "#f5d7b8","center")
+
+    def prop(self,key,obj):
+        x,y,name,kind=obj
+        w=self.world
+        cx,cy=x*T+16,y*T+16
+        if kind in ("npc","ghost"):
+            if key=="brizna" and w.met:return
+            if key=="client" and w.reports.get(w.place)=="complete":return
+            if key=="guest" and w.guest_decision=="stayed" and w.active=="Mateo":return
+            self.actor(x,y,name.split(",")[0],kind=="ghost",weak=key=="guest" and not w.guest_decision)
+        elif kind=="paper":
+            self.rect(cx-15,cy-8,30,21,"#654f46","#322a36")
+            self.rect(cx-15,cy-9,30,6,"#a38268")
+            self.rect(cx-8,cy-12,16,13,"#e0cda6","#78685c")
+            self.line(cx-5,cy-8,cx+5,cy-8,fill="#886e5d")
+            self.line(cx-5,cy-4,cx+3,cy-4,fill="#886e5d")
+        elif kind=="box":
+            self.rect(cx-14,cy-12,28,26,"#76604f","#352e38")
+            self.rect(cx-12,cy-10,24,9,"#ac8a67")
+            self.rect(cx-4,cy,8,7,"#d1b68a","#5e4c46")
+        elif kind=="device":
+            self.rect(cx-13,cy-9,26,21,"#9c7960","#322c39")
+            self.rect(cx-9,cy-5,13,11,"#45404c")
+            for i in range(3):self.line(cx-7,cy-2+i*3,cx+1,cy-2+i*3,fill="#b8a69b")
+            self.oval(cx+5,cy-3,5,5,GOLD)
+            if w.distracted:self.text(cx,cy-16,"♪",14,MINT,"center")
+        elif kind=="door":
+            self.rect(cx-15,cy-15,30,30,"#809d8c" if w.permissions[w.place] or w.distracted>0 else "#996f60","#3b3341")
+            self.rect(cx+6,cy-2,5,5,GOLD)
+        elif kind=="home":
+            self.rect(cx-15,cy-8,30,23,"#79604f","#41384b")
+            self.oval(cx-8,cy-17,16,17,"#84bdad","#dcdfb0")
+        elif kind=="board":
+            self.rect(cx-14,cy-17,29,30,"#514553","#c9ac8b",2)
+            for dx,dy in [(-9,-11),(3,-8),(-7,4)]:self.rect(cx+dx,cy+dy,8,7,"#e6d5b8")
+            self.line(cx-5,cy-8,cx+7,cy-5,cx-3,cy+7,fill="#d28d86")
+        else:
+            self.rect(cx-14,cy-14,28,28,"#4d625d","#a9b995")
+            self.text(cx,cy,"↗",17,MINT,"center",bold=True)
+
     def target(self):
-        choices=self.candidates()
-        if self.choice not in choices: self.choice=choices[0] if choices else None
+        cs=self.world.nearby()
+        if self.choice not in cs:self.choice=cs[0] if cs else None
         return self.choice
 
     def render(self):
-        c=self.cv; w=self.world; c.delete("all")
-        self.floor()
-        for key,(x,y,_) in OBJECTS.items():
-            self.furniture(key,x*T+16,y*T+16)
-        self.sprite(*w.julian,"Julián");self.sprite(*w.clara,"Clara")
-        key=self.target()
-        if key:
-            x,y,_=OBJECTS[key]
+        w=self.world
+        self.cv.delete("all");self.buttons.clear();self.floor()
+        for k,o in w.objects.items():self.prop(k,o)
+        self.actor(w.x,w.y,"Tomás",active=not w.ghost_mode)
+        if w.met:self.actor(w.gx,w.gy,w.active,True,w.ghost_mode,w.spirit.stability<40)
+        k=self.target()
+        if k:
+            x,y,*_=w.objects[k]
             self.rect(x*T+1,y*T+1,30,30,"",MINT,2)
-        self.sprite(w.x,w.y,"ghost")
-        self.rect(0,0,MW,32,BG)
-        self.text(12,7,"AGENCIA DE ESPECTROS",13,MINT,bold=True)
-        self.text(360,8,"CASO 01 · EL RELOJ DEL CONSERJE",10,GOLD)
-        self.rect(MW,0,W-MW,H,"#252033")
-        self.text(720,13,"EXPEDIENTE 01",12,GOLD,bold=True)
-        self.text(720,40,"Visita "+str(w.visits)+"  |  Día "+str(w.day),10)
-        self.text(720,61,"Hora de investigación: "+str(w.phase).zfill(2)+"/40",9)
-        self.text(720,87,"Ectoplasma "+str(w.energy)+"/100",10,MINT)
-        self.bar(720,107,220,w.energy,"#70bda9")
-        self.text(720,123,"Sospecha "+str(w.suspicion)+"/100",10)
-        self.bar(720,143,220,w.suspicion,"#d98489")
-        self.text(720,166,"RUTINAS",10,GOLD,bold=True)
-        status="Protección" if w.blocked else ("Alerta" if w.suspicion>=50 else "Curioso" if w.suspicion>=25 else "Normal")
-        self.text(720,186,"Julián: "+status,10)
-        self.text(720,204,"Armario: "+("abierto" if w.cabinet_open else "cerrado"),10)
-        self.text(720,235,"PRUEBAS "+str(len(w.clues)-1)+"/4",10,GOLD,bold=True)
-        for i,(id,(name,_)) in enumerate(CLUES.items()):
-            self.text(720,260+i*23,("■ " if id in w.clues else "□ ")+name,9,MINT if id in w.clues else "#877b8e")
-        self.rect(718,386,224,38,"#483953","#77617f")
-        self.text(830,405,"TAB  ·  TABLERO",11,MINT,"center",bold=True)
-        self.text(720,442,"R  Nueva visita\nF5 Guardar   F9 Cargar\nQ  Cambiar objetivo",10,"#b7a9bc")
-        self.text(720,509,"Informe: "+(w.report or "sin cerrar").replace("_"," "),10,GOLD,width=220)
-        self.text(720,558,"Demo 0.1  ·  PC",9,"#84788b")
-        self.rect(0,416,MW,194,BG)
-        self.text(12,429,"WASD / Flechas: mover    E: observar    ESPACIO: poseer",11,MINT)
-        self.text(12,453,"OBJETO: "+(LABELS[key] if key else "Acércate a uno"),11,GOLD,bold=True)
-        if key: self.text(12,476,OBJECTS[key][2],10,INK,width=680)
-        self.rect(12,509,680,87,"#292337","#45374d")
-        self.text(22,519,"BITÁCORA",9,GOLD,bold=True)
-        for i,msg in enumerate(w.log[-2:]):
-            self.text(22,540+i*24,msg,10,INK,width=660)
+        self.rect(0,0,MW,30,BG)
+        self.text(11,5,NAMES[w.place],13,GOLD,bold=True)
+        self.text(MW-10,8,"VERSIÓN 0.2",9,MINT,"ne")
+        self.rect(MW,0,320,H,"#282536")
+        self.text(654,13,"AGENCIA DE ESPECTROS",14,MINT,bold=True)
+        self.text(654,43,"Control: "+(w.active if w.ghost_mode else "Tomás"),11,GOLD)
+        if w.met:
+            self.text(654,72,f"{w.active} · Energía {int(w.spirit.energy)}",10)
+            self.bar(654,92,290,w.spirit.energy,"#70b9ac")
+            self.text(654,110,f"Estabilidad {int(w.spirit.stability)} · Vínculo {w.spirit.bond}",10)
+            self.bar(654,131,290,w.spirit.stability,"#b3a1d5")
+            anchor="Agencia" if w.place=="office" and w.spirit.home else ("Tomás" if w.spirit.bond else "Cine")
+            self.text(654,147,f"Ancla: {anchor} · Alcance: {w.spirit.radius}",10,MINT)
+        else:self.text(654,72,"Encuentra a Brizna en el cine.",10,MINT)
+        self.text(654,181,"EXPEDIENTES",11,GOLD,bold=True)
+        for i,(case,cfg) in enumerate(CASES.items()):
+            report=w.reports.get(case,"abierto")
+            if case=="station" and not w.home_open:report="bloqueado"
+            label={"complete":"resuelto","incomplete":"incompleto","provisional":"provisional"}.get(report,report)
+            self.text(654,206+i*24,cfg["title"]+" · "+label,10)
+        if w.case:
+            self.text(654,261,"PISTAS DEL LUGAR",10,GOLD,bold=True)
+            for i,key in enumerate(w.facts[w.place]):
+                physical=key in w.physical[w.place]
+                clue=w.case["clues"][key]
+                self.text(654,283+i*17,("◆ " if physical else "◇ ")+clue[:39]+("…" if len(clue)>39 else ""),9,MINT if physical else INK)
+        else:
+            self.text(654,262,"COMPAÑEROS",11,GOLD,bold=True)
+            self.text(654,287," / ".join(w.spirits),10,MINT)
+            if not w.guest_decision:self.text(654,310,f"Mateo errante · estabilidad {int(w.wanderer.stability)}",10)
+            self.text(654,334,"C: cambiar compañero",10)
+            if w.reports.get("station")=="complete" and not w.guest_decision:self.text(654,355,"J: invitar / P: despedirse (junto a Mateo)",9)
+        self.button(654,405,290,36,"TAB · TABLERO DE EVIDENCIAS","tab")
+        self.button(654,450,140,35,"CAMBIAR [Q]","q")
+        self.button(804,450,140,35,"ANCLA [R]","r")
+        self.button(654,496,140,35,"GUARDAR [F5]","f5")
+        self.button(804,496,140,35,"CARGAR [F9]","f9")
+        self.text(654,550,"◇ Observado   ◆ Evidencia física",10,"#aaa0b2")
+        self.rect(0,HEIGHT*T,MW,H-HEIGHT*T,BG)
+        self.text(12,363,"WASD / Flechas: mover · E: interactuar · ESPACIO: poder · F: objetivo",10,MINT)
+        self.text(12,391,"OBJETO: "+(w.objects[k][2] if k else "Acércate a uno"),12,GOLD,bold=True)
+        self.button(12,420,140,34,"INTERACTUAR E","e")
+        self.button(160,420,140,34,"PODER ESPACIO","space")
+        self.button(308,420,125,34,"OBJETIVO F","f")
+        self.rect(12,469,616,118,"#2d293a","#51485d")
+        self.text(22,480,"BITÁCORA",10,GOLD,bold=True)
+        for i,msg in enumerate(w.log[-2:]):self.text(22,502+i*38,msg,10,INK,width=590)
 
-    def press(self,e):
-        if self.paused: return
-        key=e.keysym.lower()
-        if key in ("w","a","s","d","up","down","left","right"):
-            self.held.add(key);return
+    def command(self,key):
+        w=self.world
         if key in ("e","space"):
             k=self.target()
-            if k:self.world.interact(k,key=="space")
-            else:self.world.tell("No hay objetos al alcance.")
-        elif key=="q":
-            cs=self.candidates(); k=self.target()
+            if k:w.act(k,key=="space")
+            else:w.tell("No hay objeto al alcance.")
+        elif key=="q":w.toggle();self.choice=None
+        elif key=="r":w.recall();self.choice=None
+        elif key=="f":
+            cs=w.nearby();k=self.target()
             if cs:self.choice=cs[(cs.index(k)+1)%len(cs)]
-        elif key in ("tab","b"):
-            self.open_board();return "break"
-        elif key=="r":self.world.return_office()
+        elif key=="c":
+            names=list(w.spirits)
+            w.choose_spirit(names[(names.index(w.active)+1)%len(names)])
+        elif key=="j":w.recruit()
+        elif key=="p":w.release_guest()
         elif key=="f5":
-            try:self.world.save(SAVE);self.world.tell("Partida guardada.")
-            except OSError as ex:self.world.tell("No se pudo guardar: "+str(ex))
+            try:w.save(SAVE);w.tell("Partida guardada.")
+            except OSError as ex:w.tell("No se pudo guardar: "+str(ex))
         elif key=="f9":
-            try:self.world=World.load(SAVE);self.world.tell("Partida cargada.")
-            except (OSError,ValueError,TypeError,KeyError) as ex:self.world.tell("No se pudo cargar: "+str(ex))
+            try:self.world=World.load(SAVE);self.world.tell("Partida cargada.");self.choice=None
+            except (OSError,ValueError,TypeError,KeyError) as ex:w.tell("No se pudo cargar: "+str(ex))
+        elif key=="tab":self.open_board();return
         self.render()
 
-    def release(self,e):self.held.discard(e.keysym.lower())
-    def motion(self):
+    def press(self,e):
+        if self.paused:return
+        key=e.keysym.lower()
+        if key in ("w","a","s","d","up","down","left","right"):self.held.add(key);return
+        self.command(key)
+        if key=="tab":return "break"
+
+    def loop(self):
         if not self.paused:
             for key,dx,dy in [("w",0,-1),("up",0,-1),("s",0,1),("down",0,1),("a",-1,0),("left",-1,0),("d",1,0),("right",1,0)]:
-                if key in self.held:
-                    self.world.move(dx,dy);self.choice=None;break
-            self.frame+=1
-            self.render()
-        self.root.after(100,self.motion)
-    def tick(self):
-        if not self.paused:self.world.tick()
-        self.root.after(1000,self.tick)
+                if key in self.held:self.world.move(dx,dy);self.choice=None;break
+            self.world.tick(.125);self.frame+=1;self.render()
+        self.root.after(125,self.loop)
+
     def click(self,e):
         if self.paused:return
-        if 718<=e.x<=942 and 386<=e.y<=424:
-            self.open_board();return
-        for k,(x,y,_) in OBJECTS.items():
-            if (e.x//T,e.y//T)==(x,y) and self.world.near(k):
-                self.choice=k;self.render();return
+        for x,y,w,h,key in self.buttons:
+            if x<=e.x<=x+w and y<=e.y<=y+h:self.command(key);return
+        for key,(x,y,_,_) in self.world.objects.items():
+            if (e.x//T,e.y//T)==(x,y) and key in self.world.nearby():self.choice=key;self.render();return
 
     def open_board(self):
         if self.board:return
         self.paused=True;self.held.clear()
         top=tk.Toplevel(self.root);self.board=top
-        top.title("Tablero de evidencias");top.configure(bg=BG)
-        top.geometry("690x590");top.resizable(False,False)
-        top.transient(self.root);top.grab_set()
+        top.title("Expedientes");top.configure(bg=BG)
+        top.geometry("740x650");top.transient(self.root);top.grab_set()
         def close():
             top.grab_release();top.destroy();self.board=None;self.paused=False;self.render()
-        top.protocol("WM_DELETE_WINDOW",close)
-        top.bind("<Escape>",lambda e:close())
+        top.protocol("WM_DELETE_WINDOW",close);top.bind("<Escape>",lambda e:close())
+        case=tk.StringVar(value=self.world.place if self.world.place in CASES else ("station" if self.world.home_open else "cine"))
+        header=tk.Frame(top,bg=BG);header.pack(fill="x",padx=14,pady=12)
+        body=tk.Frame(top,bg=BG);body.pack(fill="both",expand=True,padx=18)
         def lab(s,color=INK,size=11):
-            tk.Label(top,text=s,bg=BG,fg=color,font=("Segoe UI",size),wraplength=640,justify="left").pack(anchor="w",padx=18,pady=4)
-        lab("EL RELOJ DEL CONSERJE",GOLD,17)
-        lab("Selecciona las pruebas que respaldan tu conclusión. El tiempo queda detenido.")
-        flags={}
-        for ident,(title,description) in CLUES.items():
-            if ident not in self.world.clues:continue
-            v=tk.BooleanVar(value=True);flags[ident]=v
-            tk.Checkbutton(top,text=title+": "+description,variable=v,bg=BG,fg=MINT,activebackground=BG,activeforeground=MINT,selectcolor="#30283d",wraplength=620,justify="left",font=("Segoe UI",10)).pack(anchor="w",padx=18)
-        lab("HIPÓTESIS",GOLD,12)
-        verdict=tk.StringVar(value="incierto")
-        for ident,label in VERDICTS.items():
-            tk.Radiobutton(top,text=label,variable=verdict,value=ident,bg=BG,fg=INK,activebackground=BG,activeforeground=MINT,selectcolor="#30283d",font=("Segoe UI",10),wraplength=620,justify="left").pack(anchor="w",padx=18)
-        result=tk.Label(top,text="",bg=BG,fg=GOLD,wraplength=630,justify="left",font=("Segoe UI",11))
-        result.pack(anchor="w",padx=18,pady=12)
-        def submit():
-            if verdict.get()!="clara" or not {"E02","E03"} <= {k for k,v in flags.items() if v.get()}:
-                if not messagebox.askyesno("Informe provisional","Puedes cerrar con dudas o una conclusión errónea. ¿Continuar?",parent=top):return
-            result.config(text=self.world.resolve(verdict.get(),[k for k,v in flags.items() if v.get()]))
-        buttons=tk.Frame(top,bg=BG);buttons.pack(pady=8)
-        tk.Button(buttons,text="Presentar informe",command=submit,bg="#49655f",fg="white",padx=12,pady=6).pack(side="left",padx=8)
-        tk.Button(buttons,text="Volver a investigar",command=close,bg="#59445e",fg="white",padx=12,pady=6).pack(side="left",padx=8)
+            tk.Label(body,text=s,bg=BG,fg=color,font=("Segoe UI",size),wraplength=680,justify="left").pack(anchor="w",pady=4)
+        def build():
+            for widget in body.winfo_children():widget.destroy()
+            k=case.get();cfg=CASES[k];w=self.world
+            lab(cfg["title"],GOLD,18);lab(cfg["client"])
+            lab("Selecciona las evidencias que respaldan tu hipótesis.",MINT)
+            flags={}
+            for key,clue in cfg["clues"].items():
+                if key not in w.facts[k]:continue
+                v=tk.BooleanVar(value=True);flags[key]=v
+                label=("◆ " if key in w.physical[k] else "◇ ")+clue
+                tk.Checkbutton(body,text=label,variable=v,bg=BG,fg=INK,activebackground=BG,activeforeground=MINT,selectcolor="#302d40",wraplength=665,justify="left").pack(anchor="w")
+            lab("HIPÓTESIS",GOLD)
+            choice=tk.IntVar(value=-1)
+            for i,label in enumerate(cfg["choices"]):
+                tk.Radiobutton(body,text=label,value=i,variable=choice,bg=BG,fg=INK,selectcolor="#302d40",activebackground=BG,activeforeground=MINT,wraplength=665,justify="left").pack(anchor="w")
+            result=tk.Label(body,text="",bg=BG,fg=GOLD,wraplength=670,justify="left");result.pack(anchor="w",pady=10)
+            def submit():
+                if choice.get()<0:result.config(text="Selecciona una hipótesis.");return
+                result.config(text=w.resolve(k,choice.get(),[key for key,v in flags.items() if v.get()]))
+            tk.Button(body,text="Presentar conclusión",command=submit,bg="#506d65",fg="white").pack(anchor="w")
+        for k in CASES:
+            if k=="station" and not self.world.home_open:continue
+            tk.Radiobutton(header,text=CASES[k]["title"],variable=case,value=k,bg=BG,fg=MINT,selectcolor="#3c344b",activebackground=BG,activeforeground=MINT,command=build).pack(side="left",padx=12)
+        build()
+        tk.Button(top,text="Volver a investigar",command=close,bg="#51435c",fg="white",padx=12,pady=6).pack(pady=10)
 
 def main():
     root=tk.Tk()
     Game(root)
     root.mainloop()
 
-if __name__=="__main__":
-    main()
+if __name__=="__main__":main()
