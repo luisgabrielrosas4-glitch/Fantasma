@@ -124,5 +124,16 @@
       ],
       "png": "accesorios/portapapeles.png"
     }
+  },
+  "ventilacion": {
+    "nombre": "Rejillas de ventilación empotradas",
+    "lienzo_px": [
+      24,
+      24
+    ],
+    "png": {
+      "frontal": "ventilacion/frontal.png",
+      "lateral": "ventilacion/lateral.png"
+    }
   }
 }
