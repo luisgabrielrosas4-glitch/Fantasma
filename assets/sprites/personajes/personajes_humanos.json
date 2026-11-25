@@ -1,0 +1,1355 @@
+{
+  "celda_px": [
+    24,
+    32
+  ],
+  "anclaje_pies_px": [
+    12,
+    30
+  ],
+  "orden_direcciones": [
+    "abajo",
+    "derecha",
+    "arriba",
+    "izquierda"
+  ],
+  "personajes": {
+    "tomas": {
+      "nombre": "Tomás",
+      "caminata": "tomas/Tomas_sprites_24x32.png",
+      "cuadros_por_direccion": 4,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "tomas/acciones_24x32.png",
+      "acciones": {
+        "hablar": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "examinar": [
+          {
+            "fila": 2,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "sorpresa": [
+          {
+            "fila": 3,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "recibir_pista": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "cansancio": [
+          {
+            "fila": 5,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ]
+      }
+    },
+    "enfermera": {
+      "nombre": "Enfermera",
+      "caminata": "enfermera/Enfermera_sprites_24x32.png",
+      "cuadros_por_direccion": 4,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "enfermera/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "senalar": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "revisar_expediente": [
+          {
+            "fila": 7,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "detras_del_mostrador": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 2,
+            "ms": [
+              140,
+              125
+            ]
+          }
+        ]
+      },
+      "retrato_dialogo": "enfermera/retrato_dialogo_32x32.png"
+    },
+    "rafael": {
+      "nombre": "Rafael",
+      "caminata": "rafael/rafael_sprites_24x32.png",
+      "cuadros_por_direccion": 6,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "rafael/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "sacar_llaves": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "senalar_entrada": [
+          {
+            "fila": 7,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "mirar_el_ruido": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "apoyado_en_pared": [
+          {
+            "fila": 9,
+            "direccion": "abajo",
+            "cuadros": 1,
+            "ms": [
+              140
+            ]
+          }
+        ],
+        "con_linterna": [
+          {
+            "fila": 10,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ]
+      }
+    },
+    "sara": {
+      "nombre": "Sara",
+      "caminata": "sara/sara_sprites_24x32.png",
+      "cuadros_por_direccion": 6,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "sara/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "cotejar_papeles": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "senalar_estante": [
+          {
+            "fila": 7,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "presentar_propuesta": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "detras_del_mostrador": [
+          {
+            "fila": 9,
+            "direccion": "abajo",
+            "cuadros": 2,
+            "ms": [
+              140,
+              125
+            ]
+          }
+        ]
+      }
+    },
+    "ines": {
+      "nombre": "Inés",
+      "caminata": "ines/ines_sprites_24x32.png",
+      "cuadros_por_direccion": 6,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "ines/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "revisar_lista": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "entregar_permiso": [
+          {
+            "fila": 7,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "senalar_casillero": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "detras_del_mostrador": [
+          {
+            "fila": 9,
+            "direccion": "abajo",
+            "cuadros": 2,
+            "ms": [
+              140,
+              125
+            ]
+          }
+        ]
+      }
+    },
+    "propietario_taller": {
+      "nombre": "Propietario del taller",
+      "caminata": "propietario_taller/propietario_taller_sprites_24x32.png",
+      "cuadros_por_direccion": 6,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "propietario_taller/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "revisar_deposito": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "entregar_autorizacion": [
+          {
+            "fila": 7,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "reaccionar_al_ruido": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "apoyado_en_pared": [
+          {
+            "fila": 9,
+            "direccion": "abajo",
+            "cuadros": 1,
+            "ms": [
+              140
+            ]
+          }
+        ]
+      }
+    },
+    "sobrina_nico": {
+      "nombre": "Sobrina de Nico",
+      "caminata": "sobrina_nico/sobrina_nico_sprites_24x32.png",
+      "cuadros_por_direccion": 6,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "sobrina_nico/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "mostrar_llave": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "probar_cerradura": [
+          {
+            "fila": 7,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "trabajar": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ]
+      }
+    },
+    "conserje_ruiz": {
+      "nombre": "Conserje de los Ruiz",
+      "caminata": "conserje_ruiz/conserje_ruiz_sprites_24x32.png",
+      "cuadros_por_direccion": 6,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "conserje_ruiz/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "buscar_libro": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "abrir_archivador": [
+          {
+            "fila": 7,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "reconocer_error": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "sentado": [
+          {
+            "fila": 9,
+            "direccion": "abajo",
+            "cuadros": 1,
+            "ms": [
+              140
+            ]
+          }
+        ]
+      }
+    },
+    "responsable_deposito": {
+      "nombre": "Responsable del depósito",
+      "caminata": "responsable_deposito/responsable_deposito_sprites_24x32.png",
+      "cuadros_por_direccion": 6,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "responsable_deposito/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "consultar_inventario": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "abrir_acceso": [
+          {
+            "fila": 7,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "senalar_cajas": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "detras_del_mostrador": [
+          {
+            "fila": 9,
+            "direccion": "abajo",
+            "cuadros": 2,
+            "ms": [
+              140,
+              125
+            ]
+          }
+        ]
+      }
+    },
+    "responsable_municipal": {
+      "nombre": "Responsable municipal",
+      "caminata": "responsable_municipal/responsable_municipal_sprites_24x32.png",
+      "cuadros_por_direccion": 6,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "responsable_municipal/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "consultar_informe": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "explicar_propuesta": [
+          {
+            "fila": 7,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "escuchar_reunion": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "sentado": [
+          {
+            "fila": 9,
+            "direccion": "abajo",
+            "cuadros": 1,
+            "ms": [
+              140
+            ]
+          }
+        ]
+      }
+    },
+    "representante_vecinal": {
+      "nombre": "Representante vecinal",
+      "caminata": "representante_vecinal/representante_vecinal_sprites_24x32.png",
+      "cuadros_por_direccion": 6,
+      "caminata_ms": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120
+      ],
+      "acciones_hoja": "representante_vecinal/acciones_24x32.png",
+      "acciones": {
+        "espera": [
+          {
+            "fila": 0,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 1,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 2,
+            "direccion": "arriba",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          },
+          {
+            "fila": 3,
+            "direccion": "izquierda",
+            "cuadros": 3,
+            "ms": [
+              500,
+              250,
+              110
+            ]
+          }
+        ],
+        "hablar": [
+          {
+            "fila": 4,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          },
+          {
+            "fila": 5,
+            "direccion": "derecha",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "conversar_en_plaza": [
+          {
+            "fila": 6,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "senalar": [
+          {
+            "fila": 7,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "asentir": [
+          {
+            "fila": 8,
+            "direccion": "abajo",
+            "cuadros": 3,
+            "ms": [
+              140,
+              125,
+              160
+            ]
+          }
+        ],
+        "sentado": [
+          {
+            "fila": 9,
+            "direccion": "abajo",
+            "cuadros": 1,
+            "ms": [
+              140
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
