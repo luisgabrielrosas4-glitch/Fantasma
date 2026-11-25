@@ -37,7 +37,7 @@
       "nombre": "Cortina de privacidad",
       "lienzo_px": [
         72,
-        24
+        48
       ],
       "png": {
         "sombra": "cortina/sombra.png",
