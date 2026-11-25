@@ -2,6 +2,8 @@
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 import json
+from collections import deque
+from niveles import LEVELS, DIRS, distance, occupied, sight
 from campana import ORDER, EXTRA, PROLOGUE_MAPS, DIALOGUES, NAMES
 
 WIDTH, HEIGHT = 20, 11
@@ -82,18 +84,18 @@ for case,cfg in EXTRA.items():
 MAPS["ruiz"]["mora"]=(6,4,"Mora, gata espectral","ghost")
 MAPS["final"]["wish"]=(6,4,"Conversar con Brizna","ghost")
 MAPS.update(PROLOGUE_MAPS)
-WALLS = {(10,y) for y in range(1,10) if y!=5}
-FURNITURE = {
-    "cine": {(x,y) for x in (4,5,6) for y in (6,8)},
-    "office": {(x,y) for x in (6,7,8) for y in (6,7)},
-    "station": {(x,6) for x in (3,4,5)}
-}
-for place in MAPS:
-    FURNITURE.setdefault(place,set())
+# Las dimensiones y colisiones se consultan por escena.
+for place, objects in MAPS.items():
+    for key,o in list(objects.items()):
+        if key in LEVELS[place].points:
+            objects[key]=(*LEVELS[place].points[key],*o[2:])
+FURNITURE={k:v.furniture for k,v in LEVELS.items()}
+WALLS=set() # compatibilidad con importadores antiguos; usar LEVELS[place].walls
+
 def blocked(place,x,y,permission=False,distraction=0):
-    if not (1<=x<WIDTH-1 and 1<=y<HEIGHT-1):return True
-    if (x,y) in FURNITURE[place]:return True
-    return place in CASES and ((x,y) in WALLS or ((x,y)==(10,5) and not (permission or distraction>0)))
+    l=LEVELS[place];pos=(x,y)
+    if not l.inside(pos) or pos in l.walls or pos in l.furniture:return True
+    return pos in l.doors and not (permission or (distraction>0 and place!="workshop"))
 
 @dataclass
 class Spirit:
@@ -128,9 +130,9 @@ class Spirit:
 class World:
     place: str = "office"
     x: int = 4
-    y: int = 5
-    gx: int = 4
-    gy: int = 3
+    y: int = 18
+    gx: int = 5
+    gy: int = 18
     ghost_mode: bool = False
     met: bool = False
     home_open: bool = False
@@ -155,10 +157,14 @@ class World:
     decisions: dict = field(default_factory=dict)
     ending: str = ""
     community_choice: str = ""
+    alerts: dict = field(default_factory=dict)
+    patrol_clock: float = 0.
+    patrol_positions: dict = field(default_factory=dict)
+    pending_rafael: bool = False
 
     @classmethod
     def new_game(cls):
-        return cls(place="hospital",x=3,y=6,stage="hospital")
+        return cls(place="hospital",x=3,y=4,gx=4,gy=4,stage="hospital")
 
     def mark(self,key):
         if key not in self.visited:self.visited.append(key)
@@ -176,7 +182,7 @@ class World:
             return ("Sal hacia el despacho.","exit")
         if p=="street":return ("Habla con Rafael antes de entrar.","rafael") if "street:rafael" not in self.visited else ("Entra al cine.","exit")
         if p=="office":
-            if self.stage=="dispatch":return ("Habla con Rafael para aceptar su encargo.","rafael")
+            if self.stage=="dispatch":return ("Sal al cine cuando estés listo.","exit") if "office:rafael" in self.visited else ("Habla con Rafael para aceptar su encargo.","rafael")
             if self.stage=="foundation":
                 if "home" not in self.foundation:return ("Prepara el rincón de Brizna.","home")
                 if "board" not in self.foundation:return ("Coloca el tablón de expedientes.","board")
@@ -190,13 +196,14 @@ class World:
         if p=="cine" and not self.met:return ("Acércate a la pequeña silueta y habla con ella.","brizna")
         if p=="cine" and not self.practice_done:
             if "power" not in self.practice:
+                if not self.ghost_mode and distance((self.x,self.y),self.objects["radio"][:2])>self.spirit.radius:return ("Acerca a Tomás a la radio para mantener el vínculo.","radio")
                 return (("Usa ESPACIO junto a la radio para probar la vibración." if self.ghost_mode else "Pulsa Q para controlar a Brizna y acércate a la radio."),"radio")
             return ("Pulsa R para volver junto a Tomás.",None)
         if self.reports.get(p)=="complete":return ("Regresa a la agencia por la salida.","exit")
         if "request" not in self.facts[p]:return ("Escucha al cliente.","client")
         if p=="station" and not ({"witness","desk"}&set(self.facts[p])):
-            return ("Acércate a Silvia como espíritu o inspecciona el archivo con él.","witness")
-        if not self.spoken[p]:return ("Habla con el responsable como Tomás para conseguir acceso.","guard")
+            return ("Acércate a Silvia con Tomás y cambia a tu compañero (Q)." if not self.ghost_mode else "Habla con Silvia como espíritu.","witness")
+        if not self.spoken[p] or not self.access():return ("Espera o habla con el responsable para recuperar el permiso." if self.alert_value("guard")>=50 else "Habla con el responsable como Tomás para conseguir acceso.","guard")
         cfg=CASES[p]
         for key in cfg.get("physical_required",["desk","item"]):
             if key not in self.physical[p]:return ("Recupera las pruebas físicas con Tomás.","box" if key=="item" else key)
@@ -211,10 +218,11 @@ class World:
         return "power" in self.practice and "return" in self.practice
 
     def scene(self,destination,stage=None):
-        self.place=destination;self.x,self.y=(3,6) if destination!="office" else (4,5)
-        self.gx,self.gy=(self.x,self.y)
+        self.place=destination;self.x,self.y=LEVELS[destination].spawn
+        self.gx,self.gy=self.adjacent((self.x,self.y))
         self.ghost_mode=False;self.distracted=0
         if stage:self.stage=stage
+        self.repair_positions()
         return self.tell("Llegaste a "+NAMES[destination]+".")
 
     @property
@@ -260,21 +268,24 @@ class World:
         if self.place=="office":
             result.pop("guest",None)
             if self.stage=="dispatch":
-                return {"rafael":(8,3,"Rafael, conserje","npc"),"home":(4,3,"Viejo escritorio","home")}
+                return {"rafael":(8,14,"Rafael, conserje","npc"),"home":(23,4,"Viejo escritorio","home"),"exit":(3,19,"Salir hacia el cine","exit")}
             if self.stage=="foundation":
-                return {"home":(4,3,"Rincón de Brizna","home"),"board":(8,3,"Instalar tablón","board"),"journal":(11,3,"Libreta y letrero","paper")}
+                return {"home":(23,4,"Rincón de Brizna","home"),"board":(5,4,"Instalar tablón","board"),"journal":(8,5,"Libreta y letrero","paper")}
             next_case=self.next_case()
             if next_case and next_case!="cine":
                 cfg=CASES[next_case];name=cfg.get("person","Mateo")
-                result["request_"+next_case]=(13,4,name+", cliente",cfg.get("client_kind","ghost"))
+                result["request_"+next_case]=(12,15,name+", cliente",cfg.get("client_kind","ghost"))
             for i,case in enumerate(("station","workshop","ruiz")):
                 if self.reports.get(case)=="complete" and case not in self.decisions:
                     name={"station":"Mateo","workshop":"Nico","ruiz":"Mora"}[case]
-                    result["guest_"+case]=(13+i,7,name+", decisión","ghost")
+                    result["guest_"+case]=(19+i*2,12,name+", decisión","ghost")
             for i,(name,spirit) in enumerate(self.spirits.items()):
                 if name!=self.active and spirit.bond:
-                    result["ally_"+name]=(4+i*2,8,name+", aliado","ghost")
-            result["journal"]=(11,3,"Archivo y libreta","paper")
+                    result["ally_"+name]=(17+i*2,17,name+", aliado","ghost")
+            result["journal"]=(8,5,"Archivo y libreta","paper")
+        for key,o in list(result.items()):
+            pos=self.patrol_positions.get(self.place+":"+key)
+            if pos and o[3]=="npc":result[key]=(*pos,*o[2:])
         return result
 
     @property
@@ -286,6 +297,114 @@ class World:
         self.log=self.log[-30:]
         return msg
 
+    def adjacent(self,center,prefer=None):
+        l=LEVELS[self.place]
+        taken=occupied(self.objects)|{center}
+        options=[(center[0]+dx,center[1]+dy) for dx,dy in DIRS]
+        options=[p for p in options if l.inside(p) and p not in taken and p not in l.walls and p not in l.furniture]
+        if not options:
+            options=[p for p in [(center[0]+dx,center[1]+dy) for dx,dy in DIRS] if l.inside(p) and p not in taken]
+        if options:
+            return min(options,key=lambda p:distance(p,prefer)) if prefer is not None else options[0]
+        return next(((x,y) for r in range(2,7) for x in range(center[0]-r,center[0]+r+1) for y in range(center[1]-r,center[1]+r+1) if l.inside((x,y)) and (x,y) not in taken),center)
+
+    def repair_positions(self):
+        l=LEVELS[self.place];taken=occupied(self.objects)
+        if not l.inside((self.x,self.y)) or (self.x,self.y) in taken or blocked(self.place,self.x,self.y,True):
+            self.x,self.y=l.spawn
+        if self.companion_present and (not l.inside((self.gx,self.gy)) or (self.gx,self.gy) in taken|{(self.x,self.y)}):
+            self.gx,self.gy=self.adjacent((self.x,self.y))
+
+    def follow(self,previous=None):
+        if not self.companion_present or self.place=="office":return
+        center=(self.x,self.y);current=(self.gx,self.gy)
+        if distance(center,current)==1 and current not in occupied(self.objects):return
+        self.gx,self.gy=self.adjacent(center,previous or current)
+
+    def alert_enabled(self):
+        return self.place in CASES and (self.place!="cine" or self.practice_done)
+
+    def alert_state(self,key):
+        return self.alerts.setdefault(self.place+":"+key,{"value":10.,"quiet":0.,"cool":0.,"explained":False,"inside":False,"repeat":0.,"suspended":False,"facing":[-1,0]})
+
+    def alert_value(self,key):
+        return self.alerts.get(self.place+":"+key,{}).get("value",0.)
+
+    def access(self):
+        return self.permissions.get(self.place,False) and not self.alerts.get(self.place+":guard",{}).get("suspended",False)
+
+    def visible(self,key,point):
+        o=self.objects.get(key)
+        if not o:return False
+        pos=o[:2];dx,dy=point[0]-pos[0],point[1]-pos[1]
+        f=self.alert_state(key)["facing"]
+        dot=dx*f[0]+dy*f[1];cross=abs(dx*f[1]-dy*f[0])
+        return distance(pos,point)<=4 and dot>=cross and sight(LEVELS[self.place],pos,point,not self.access())
+
+    def stimulus(self,point,kind):
+        if not self.alert_enabled():return
+        for key,o in self.objects.items():
+            if o[3]!="npc":continue
+            state=self.alert_state(key)
+            seen=self.visible(key,point)
+            # Ruido atenuado al cruzar una puerta cerrada.
+            radius=5 if sight(LEVELS[self.place],o[:2],point,not self.access()) else 3
+            amount=(18 if seen else 8 if distance(o[:2],point)<=radius else 0) if kind=="noise" else (12 if seen and state["cool"]<=0 else 0)
+            if amount:
+                self.raise_alert(key,amount)
+                if kind=="private":state["cool"]=3.
+
+    def raise_alert(self,key,amount):
+        s=self.alert_state(key);old=s["value"];s["value"]=min(100.,old+amount);s["quiet"]=0.
+        if old<25<=s["value"]:self.tell(self.objects[key][2]+": ¿Qué ha sido eso?")
+        if old<50<=s["value"]:self.tell(self.objects[key][2]+" empieza a vigilar el lugar.")
+        if s["value"]>=75:s["suspended"]=True
+
+    def tick_alert(self,dt):
+        if not self.alert_enabled():return
+        for key,o in self.objects.items():
+            if o[3]!="npc":continue
+            s=self.alert_state(key);s["cool"]=max(0.,s["cool"]-dt)
+            trespass=(self.x,self.y) in LEVELS[self.place].restricted and not self.access() and self.visible(key,(self.x,self.y))
+            if trespass:
+                if not s["inside"]:self.raise_alert(key,20);s["repeat"]=0.
+                else:
+                    s["repeat"]+=dt
+                    if s["repeat"]>=3:self.raise_alert(key,5);s["repeat"]-=3
+                s["quiet"]=0.
+            else:
+                s["quiet"]+=dt
+                if s["quiet"]>5:s["value"]=max(0.,s["value"]-4*dt)
+            s["inside"]=trespass
+            if s["value"]<50:s["suspended"]=False
+            if s["value"]<25:s["explained"]=False
+
+    def calm(self,key):
+        if self.ghost_mode or not self.alert_enabled():return False
+        s=self.alert_state(key)
+        if s["value"]>=25 and not s["explained"]:
+            s["value"]=max(0.,s["value"]-15);s["explained"]=True
+            if s["value"]<50:s["suspended"]=False
+            self.tell("Tomás explica la situación. "+self.objects[key][2]+" se tranquiliza un poco.")
+            return True
+        return False
+
+    def patrol(self,dt):
+        if not self.alert_enabled():return
+        self.patrol_clock+=dt
+        if self.patrol_clock<3:return
+        self.patrol_clock=0.
+        key="guard";o=self.objects.get(key)
+        if not o or o[3]!="npc" or distance(o[:2],(self.x,self.y))<=2 or distance(o[:2],(self.gx,self.gy))<=2:return
+        base=LEVELS[self.place].points["guard"]
+        options=[(base[0]+dx,base[1]+dy) for dx,dy in DIRS]+[base]
+        taken=occupied({k:v for k,v in self.objects.items() if k!=key})|{(self.x,self.y),(self.gx,self.gy)}
+        options=[p for p in options if distance(p,o[:2])==1 and p not in taken and not blocked(self.place,*p,True)]
+        if options:
+            dest=options[int(self.guest_clock)%len(options)]
+            self.patrol_positions[self.place+":"+key]=list(dest)
+            self.alert_state(key)["facing"]=[dest[0]-o[0],dest[1]-o[1]]
+
     def tick(self,dt):
         dt=max(0,min(dt,2))
         self.distracted=max(0,self.distracted-dt)
@@ -294,43 +413,52 @@ class World:
             self.wanderer.update(0,dt)
             self.wanderer.stability=max(15,self.wanderer.stability)
             self.wanderer.energy=max(5,self.wanderer.energy)
+        self.tick_alert(dt);self.patrol(dt)
         if self.place=="office":
-            # Toda la oficina es un refugio, sin alcance, desgaste ni poderes de misión.
             for spirit in self.spirits.values():
                 if spirit.bond:spirit.update(0,dt,True)
             return
         if not self.companion_present:return
-        if not self.ghost_mode:self.gx,self.gy=self.x,self.y
+        if not self.ghost_mode:self.follow()
         self.spirit.update(self.distance,dt)
         if self.spirit.stability<=0:
-            self.gx,self.gy=self.anchor
+            self.gx,self.gy=self.adjacent(self.anchor)
             self.ghost_mode=False
             self.spirit.stability=20
             self.tell(self.active+" se debilitó y regresó junto a Tomás.")
 
     def move(self,dx,dy):
         if abs(dx)+abs(dy)!=1:return False
-        x,y=self.pos
-        x,y=x+dx,y+dy
-        if not (1<=x<WIDTH-1 and 1<=y<HEIGHT-1):return False
+        x,y=self.pos;dest=(x+dx,y+dy)
+        if not LEVELS[self.place].inside(dest) or dest in occupied(self.objects):return False
         if self.ghost_mode:
-            if not self.companion_present:return False
-            if self.place!="office":
-                a,b=self.anchor
-                new_dist=abs(x-a)+abs(y-b)
+            if not self.companion_present or dest==(self.x,self.y):return False
+            if self.anchor is not None:
+                new_dist=distance(dest,self.anchor)
                 if new_dist>self.spirit.radius+3 and new_dist>=self.distance:return False
                 if self.spirit.stability<20 and new_dist>self.distance:return False
-            self.gx,self.gy=x,y
+            self.gx,self.gy=dest
         else:
-            if blocked(self.place,x,y,self.permissions.get(self.place,False),self.distracted):return False
-            self.x,self.y=x,y
-            if self.companion_present and self.place!="office":self.gx,self.gy=x,y
+            # Salir de una zona restringida siempre es posible.
+            leaving=(x,y) in LEVELS[self.place].restricted
+            if dest in LEVELS[self.place].restricted and not leaving and not (self.access() or (self.distracted>0 and self.place!="workshop")):return False
+            if blocked(self.place,*dest,self.access() or leaving,self.distracted):return False
+            if self.companion_present and dest==(self.gx,self.gy):
+                if self.place=="office":return False
+                alt=self.adjacent(dest,(x,y))
+                if alt==(x,y):
+                    alternatives=[(dest[0]+a,dest[1]+b) for a,b in DIRS if (dest[0]+a,dest[1]+b)!=(x,y)]
+                    alt=next((p for p in alternatives if LEVELS[self.place].inside(p) and p not in occupied(self.objects)),None)
+                if alt is None or alt==dest:return False
+                self.gx,self.gy=alt
+            self.x,self.y=dest
+            if self.companion_present and self.place!="office":self.follow((x,y))
         return True
 
     def toggle(self):
         if not self.companion_present:return self.tell("Aún no tienes un compañero aquí.")
         self.ghost_mode=not self.ghost_mode
-        if not self.ghost_mode and self.place!="office":self.gx,self.gy=self.x,self.y
+        if not self.ghost_mode and self.place!="office":self.follow()
         return self.tell("Control: "+(self.active if self.ghost_mode else "Tomás"))
 
     def recall(self):
@@ -338,8 +466,58 @@ class World:
         self.ghost_mode=False
         if self.place=="office":return self.tell("En la agencia los espíritus se mueven libremente.")
         if self.place=="cine" and "power" in self.practice and "return" not in self.practice:self.practice.append("return")
-        self.gx,self.gy=self.anchor
+        self.gx,self.gy=self.adjacent(self.anchor)
         return self.tell(self.active+" regresó junto a Tomás.")
+
+    def route_to(self,key):
+        # Guía por el camino real; no traza una flecha atravesando paredes.
+        o=self.objects.get(key)
+        if not o:return []
+        level=LEVELS[self.place];start=self.pos;goal=o[:2]
+        taken=occupied(self.objects)
+        if self.ghost_mode:taken.add((self.x,self.y))
+        elif self.place=="office" and self.companion_present:taken.add((self.gx,self.gy))
+        q=deque([start]);parents={start:None}
+        found=None
+        while q:
+            pos=q.popleft()
+            if distance(pos,goal)<=1:found=pos;break
+            for dx,dy in DIRS:
+                n=(pos[0]+dx,pos[1]+dy)
+                if n in parents or not level.inside(n) or n in taken:continue
+                if self.ghost_mode:
+                    if self.anchor is not None and distance(n,self.anchor)>self.spirit.radius+3:continue
+                else:
+                    leaving=pos in level.restricted
+                    if blocked(self.place,*n,self.access() or leaving,self.distracted):continue
+                    if n in level.restricted and not leaving and not (self.access() or (self.distracted>0 and self.place!="workshop")):continue
+                parents[n]=pos;q.append(n)
+        if found is None:return []
+        path=[]
+        while found is not None:path.append(found);found=parents[found]
+        return path[::-1]
+
+    def interaction(self,key):
+        if key not in self.nearby():return ("Acércate",False)
+        o=self.objects[key];kind=o[3]
+        if kind in ("npc","ghost"):return ("Escuchar" if kind=="npc" and self.ghost_mode else "Hablar",True)
+        if kind=="paper":return ("Examinar" if key=="photo" else "Leer",True)
+        if kind=="exit":return ("Entrar" if self.place=="street" else "Salir",not self.ghost_mode)
+        if kind=="door":return ("Abrir" if self.access() and not self.ghost_mode else "Examinar",True)
+        if kind=="board":return ("Preparar" if self.stage=="foundation" else "Ver casos",True)
+        if kind=="home":return ("Preparar" if self.stage=="foundation" else "Examinar" if self.stage=="dispatch" else "Descansar",True)
+        if kind=="box":return ("Abrir" if not self.ghost_mode and (self.place not in CASES or self.spoken.get(self.place)) else "Examinar",True)
+        return ("Examinar",True)
+
+    def power_action(self,key):
+        if not self.ghost_mode or self.place not in CASES or key not in self.nearby() or self.spirit.stability<20:return ("Poder",False)
+        power=self.spirit.power
+        if power=="track":return ("Rastrear",self.spirit.energy>=10)
+        valid=key=="radio" or (power=="mechanism" and key=="door")
+        return ({"sound":"Sonar","mechanism":"Manipular"}.get(power,"Vibrar"),valid and self.spirit.energy>={"sound":15,"mechanism":25}.get(power,20))
+
+    def accept_rafael(self):
+        if self.place=="office" and self.stage=="dispatch":self.mark("office:rafael")
 
     def travel(self,destination):
         if self.ghost_mode:return self.tell("Tomás debe desplazarse físicamente.")
@@ -360,7 +538,7 @@ class World:
         if name not in self.spirits:return self.tell("Ese espíritu no es compañero.")
         if not self.spirits[name].bond:return self.tell("Todavía no hay un vínculo.")
         self.active=name
-        self.gx,self.gy=4,3
+        self.gx,self.gy=self.adjacent((self.x,self.y))
         return self.tell(name+" te acompañará en la siguiente investigación.")
 
     def nearby(self):
@@ -408,13 +586,16 @@ class World:
             if self.spirit.energy<cost:return self.tell("No hay suficiente energía.")
             if self.place=="office":return self.tell("No es necesario aquí.")
             self.spirit.energy-=cost
+            if self.alert_enabled():self.stimulus(self.objects[key][:2],"noise")
             if self.place=="cine" and "power" not in self.practice:self.practice.append("power")
-            self.distracted=15 if self.spirit.power=="sound" else 10
-            return self.tell(self.active+" activa el dispositivo. La puerta queda libre "+str(int(self.distracted))+" segundos.")
+            self.distracted=0 if self.place=="workshop" else (15 if self.spirit.power=="sound" else 10)
+            return self.tell(self.active+" activa el dispositivo. "+("El depósito sigue cerrado." if self.place=="workshop" else "Distracción durante "+str(int(self.distracted))+" segundos."))
         if self.place=="office":
             if self.stage=="dispatch":
                 if key=="rafael" and not ghost:
-                    self.mark("office:rafael")
+                    return self.tell("Rafael tiene un encargo para ti.")
+                if key=="exit" and not ghost:
+                    if "office:rafael" not in self.visited:return self.tell("Acepta primero el encargo de Rafael.")
                     return self.scene("street","street")
                 return self.tell("El despacho aún no es una agencia. Habla con Rafael.")
             if self.stage=="foundation":
@@ -444,7 +625,7 @@ class World:
         if key=="brizna":
             if ghost:return self.tell("Brizna está contigo.")
             self.met=True
-            self.gx,self.gy=self.x,self.y
+            self.gx,self.gy=self.adjacent((self.x,self.y))
             return self.tell("Brizna nació de las emociones del cine. Te acompaña gracias a un vínculo provisional.")
         if key=="client":
             if self.place=="cine" and not self.practice_done:return self.tell("Primero practica el vínculo con Brizna y la radio.")
@@ -460,6 +641,8 @@ class World:
         if key=="guard":
             if ghost:
                 return self.add_fact("heard")
+            self.calm(key)
+            if self.alert_value(key)>=50:return self.tell("Ahora no es buen momento. Espera a que se calme o habla para explicar la situación.")
             if "request" not in self.facts[self.place]:return self.tell("Antes de pedir acceso, habla con el espíritu que necesita ayuda.")
             if self.place=="station" and not ({"witness","desk"} & set(self.facts[self.place])):
                 self.add_fact("heard")
@@ -472,10 +655,12 @@ class World:
             return self.add_fact(key,not ghost)
         if key=="box":
             if ghost:return self.tell("Puedes ver la caja, pero no abrirla ni sacar su contenido.")
-            if not self.spoken[self.place]:return self.tell("Necesitas la llave del encargado. Habla con él.")
+            if not self.spoken[self.place] or not self.access():
+                self.stimulus(self.objects[key][:2],"private")
+                return self.tell("Necesitas autorización del encargado. Habla con él o espera a que se calme.")
             return self.add_fact("item",True)
         if key=="door":
-            return self.tell("Acceso permitido." if self.permissions[self.place] or self.distracted>0 else "Cerrada. Habla con el encargado o usa una distracción.")
+            return self.tell("Acceso permitido." if self.access() or self.distracted>0 else "Cerrada. Habla con el encargado o usa una distracción.")
         if key=="exit":
             if ghost:return self.tell("Tomás debe salir contigo.")
             return self.travel("office")
@@ -530,17 +715,18 @@ class World:
     def save(self,path):
         path=Path(path)
         tmp=path.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"version":4,"world":asdict(self)},ensure_ascii=False),encoding="utf-8")
+        tmp.write_text(json.dumps({"version":5,"world":asdict(self)},ensure_ascii=False),encoding="utf-8")
         tmp.replace(path)
 
     @classmethod
     def load(cls,path):
         data=json.loads(Path(path).read_text(encoding="utf-8"))
-        if data.get("version")!=4:raise ValueError("Guardado anterior. Inicia una partida de esta versión.")
+        if data.get("version")!=5:raise ValueError("Guardado anterior. Inicia una partida de esta versión.")
         d=data["world"]
         d["spirits"]={k:Spirit(**v) for k,v in d["spirits"].items()}
         d["wanderer"]=Spirit(**d["wanderer"])
         w=cls(**d)
         if w.place not in MAPS or w.active not in w.spirits:raise ValueError("Guardado inválido.")
         if any(not 0<=s.energy<=100 or not 0<=s.stability<=100 for s in w.spirits.values()):raise ValueError("Recursos inválidos.")
+        w.repair_positions()
         return w

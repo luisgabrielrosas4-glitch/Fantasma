@@ -1,4 +1,4 @@
-"""Agencia de espectros 0.4 — prototipo Pygame-ce para validar antes de Godot."""
+"""Agencia de espectros 0.5.1 — prototipo Pygame-ce para validar antes de Godot."""
 import os
 import math
 from pathlib import Path
@@ -12,7 +12,7 @@ MAP_X,MAP_Y=16,64
 MAP_SIZE=(W*2,H*2)
 SIDE_X=992
 BG="#191824"; PANEL="#292638"; BORDER="#51475c"; GOLD="#e9bc83"; MINT="#b2e6d1"; INK="#e6dbcd"; MUTED="#b2a6b8"
-SAVE=Path.home()/".agencia_espectros_v4.json"
+SAVE=Path.home()/".agencia_espectros_v5.json"
 
 STATUS={"complete":"RESUELTO","provisional":"PROVISIONAL","incomplete":"INCOMPLETO"}
 
@@ -20,7 +20,9 @@ class Game:
     def __init__(self,screen=None):
         if not pg.get_init():pg.init()
         if not pg.font.get_init():pg.font.init()
-        self.screen=screen if screen is not None else pg.display.set_mode((1280,720),pg.RESIZABLE)
+        desktop=pg.display.get_desktop_sizes()[0]
+        width=min(1280,max(640,desktop[0]-100));height=min(720,max(360,desktop[1]-100))
+        self.screen=screen if screen is not None else pg.display.set_mode((width,height),pg.RESIZABLE)
         pg.display.set_caption("Agencia de espectros • El espíritu que nunca vivió")
         self.frame=pg.Surface(SIZE)
         self.motor=Motor()
@@ -33,6 +35,10 @@ class Game:
         self.dialogue=[]
         self.dialogue_index=0
         self.after_dialogue=None
+        self.dialogue_tag=None
+        self.pending_interaction=None
+        self.last_advance=0
+        self.keys_down=set()
         self.community=None
         self.review_case=None
         self.selected=set()
@@ -98,16 +104,23 @@ class Game:
         if not force and tag in self.world.visited:return False
         lines=lines or DIALOGUES.get(key)
         if not lines:return False
-        self.world.mark(tag)
+        self.dialogue_tag=tag
         self.dialogue=lines;self.dialogue_index=0;self.after_dialogue=after
         self.modal="dialogue";self.move_clock=0.
         return True
 
     def next_dialogue(self):
+        if self.modal!="dialogue":return
         self.dialogue_index+=1
         if self.dialogue_index>=len(self.dialogue):
             after=self.after_dialogue;self.after_dialogue=None
+            if self.dialogue_tag:self.world.mark(self.dialogue_tag)
+            self.dialogue_tag=None
+            pending=self.pending_interaction;self.pending_interaction=None
             self.close_modal()
+            if pending:
+                self.choice=pending
+                self.interact(False,True)
             if after:self.modal=after
             self.autosave()
 
@@ -123,9 +136,24 @@ class Game:
         self.hypothesis=None;self.result="";self.move_clock=0.
     def close_modal(self):
         self.modal=None;self.move_clock=0.;self.result=""
-    def interact(self,power=False):
+    def interact(self,power=False,commit=False):
         w=self.world;k=self.current_target()
-        if k is None:w.tell("Acércate a un objeto o a un personaje.");return
+        if k is None:return
+        if not (w.power_action(k)[1] if power else w.interaction(k)[1]):return
+        if not power and not commit and not w.ghost_mode:
+            key=w.place+":"+k
+            if key=="office:rafael" and w.stage=="dispatch":
+                if "dialogue:"+key in w.visited:self.modal="rafael_choice"
+                else:self.open_dialogue(key,after="rafael_choice")
+                return
+            if key in DIALOGUES and key!="cine:client" and not (key=="cine:guard" and "request" not in w.facts["cine"]):
+                if "dialogue:"+key not in w.visited:
+                    if self.open_dialogue(key):self.pending_interaction=k;return
+            if key=="cine:client" and w.practice_done and "dialogue:"+key not in w.visited:
+                if self.open_dialogue(key):self.pending_interaction=k;return
+            if k.startswith("request_"):
+                case=k[8:];lines=DIALOGUES.get("office:guest") if case=="station" else EXTRA[case]["intro"]
+                if "dialogue:"+key not in w.visited and self.open_dialogue(key,lines):self.pending_interaction=k;return
         if w.place=="office" and w.stage=="agency" and k=="board" and not power and not w.ghost_mode:
             self.open_cases();return
         old=w.place;old_stage=w.stage;old_fact=set(w.facts.get(old,{}))
@@ -162,6 +190,12 @@ class Game:
         w=self.world
         if isinstance(action,tuple):
             kind,value=action
+            if kind=="rafael":
+                if value=="accept":w.accept_rafael();self.close_modal();self.autosave()
+                elif value=="later":self.close_modal()
+                elif value=="when":self.open_dialogue("rafael:when",[("Rafael","Comenzó hace varias noches. Primero pensé que era un fallo eléctrico.")],after="rafael_choice",force=True)
+                elif value=="inside":self.open_dialogue("rafael:inside",[("Rafael","No hay visitantes autorizados. Yo tengo las llaves del vestíbulo.")],after="rafael_choice",force=True)
+                return
             if kind=="ally":
                 self.world.decide_ally(self.review_case,value);self.close_modal();self.autosave();return
             if kind=="community":self.community=value;return
@@ -185,7 +219,10 @@ class Game:
             except (OSError,ValueError,TypeError,KeyError) as ex:self.result="No se pudo cargar: "+str(ex)
             return
         if action=="quit":self.running=False;return
-        if action=="next_dialogue":self.next_dialogue();return
+        if action=="next_dialogue":
+            now=pg.time.get_ticks()
+            if now-self.last_advance>=180:self.last_advance=now;self.next_dialogue()
+            return
         if action=="pause":self.modal="pause";return
         if action=="save_pause":self.autosave();self.result="Partida guardada.";return
         if action=="title":self.modal="title";return
@@ -242,7 +279,7 @@ class Game:
         if not self.modal:
             mx,my=point[0]-MAP_X,point[1]-MAP_Y
             if 0<=mx<MAP_SIZE[0] and 0<=my<MAP_SIZE[1]:
-                tx,ty=int(mx//(TILE*2)),int(my//(TILE*2))
+                tx,ty=int((mx/2+self.motor.camera[0])//TILE),int((my/2+self.motor.camera[1])//TILE)
                 for k,(x,y,*_) in self.world.objects.items():
                     if (tx,ty)==(x,y) and k in self.world.nearby():self.choice=k;return
     def event(self,e):
@@ -250,11 +287,15 @@ class Game:
         if e.type==pg.VIDEORESIZE:
             self.screen=pg.display.set_mode((max(640,e.w),max(360,e.h)),pg.RESIZABLE);return
         if e.type==pg.MOUSEBUTTONDOWN and e.button==1:self.click(e.pos);return
+        if e.type==pg.KEYUP:self.keys_down.discard(e.key);return
+        if e.type==getattr(pg,"WINDOWFOCUSLOST",-1):self.keys_down.clear();return
         if e.type!=pg.KEYDOWN:return
+        if e.key in self.keys_down:return
+        self.keys_down.add(e.key)
         key=pg.key.name(e.key)
         if self.modal:
             if self.modal=="dialogue":
-                if e.key in (pg.K_RETURN,pg.K_SPACE,pg.K_e):self.next_dialogue()
+                if e.key in (pg.K_RETURN,pg.K_SPACE,pg.K_e):self.action("next_dialogue")
                 return
             if self.modal=="title":
                 if e.key==pg.K_RETURN:self.start_game()
@@ -288,7 +329,7 @@ class Game:
         self.text("Agencia de espectros" if w.place=="office" and w.stage=="agency" else NAMES[w.place],438,18,23,MINT,True)
         self.text("REFUGIO" if w.place=="office" and w.stage=="agency" else "INVESTIGACIÓN" if w.place in CASES else "PRÓLOGO",994,20,20,MUTED)
         self.panel((12,60,MAP_SIZE[0]+8,MAP_SIZE[1]+8),"#292533")
-        scene=self.motor.draw(w,0. if self.modal else dt,self.current_target(),w.goal()[1])
+        scene=self.motor.draw(w,0. if self.modal else dt,None if self.modal=="dialogue" else self.current_target(),None if self.modal=="dialogue" else w.goal()[1])
         self.frame.blit(pg.transform.scale(scene,MAP_SIZE),(MAP_X,MAP_Y))
         self.draw_hud()
         self.draw_log()
@@ -301,39 +342,47 @@ class Game:
         self.panel((x,64,272,528))
         self.text("OBJETIVO ACTUAL",x+15,79,20,GOLD,True)
         goal,target=w.goal()
-        self.wrap(goal,x+15,108,242,24,INK,True,5)
+        self.wrap(goal,x+15,106,242,23,INK,True,4)
         if target in w.objects:
-            name=w.objects[target][2]
-            self.wrap("Busca: "+name,x+15,223,240,19,MINT,limit=2)
-            self.text("Marcador dorado en el mapa",x+15,267,16,MUTED)
-        self.text("CONTROL",x+15,304,18,GOLD,True)
-        self.text(w.active if w.ghost_mode else "Tomás",x+15,327,27,INK,True)
-        portrait=self.motor.get_sprite(w.active if w.ghost_mode else "Tomás",w.ghost_mode,"down",0,False)
-        self.frame.blit(pg.transform.scale(portrait,(48,76)),(x+202,308))
+            self.wrap("Busca: "+w.objects[target][2],x+15,201,240,19,MINT,limit=2)
+        self.text("CONTROL · "+(w.active if w.ghost_mode else "Tomás"),x+15,251,22,GOLD,True)
         if w.companion_present:
-            self.text(f"{w.active} · Vínculo {w.spirit.bond}",x+15,362,19,MINT,True)
-            self.text(f"Energía {int(w.spirit.energy)}/100",x+15,387,18)
-            self.bar(x+15,410,242,w.spirit.energy,"#76b9aa")
-            self.text(f"Estabilidad {int(w.spirit.stability)}/100",x+15,427,18)
-            self.bar(x+15,450,242,w.spirit.stability,"#b19bd2")
-            self.text("Refugio libre" if w.place=="office" else f"Distancia {w.distance}/{w.spirit.radius} casillas",x+15,470,18,MINT)
-        else:self.wrap("WASD o flechas: moverte. E: hablar o examinar.",x+15,376,237,21,MUTED,limit=4)
+            self.text(f"{w.active} · Vínculo {w.spirit.bond}",x+15,286,20,MINT,True)
+            self.text(f"Energía {int(w.spirit.energy)}/100",x+15,312,19)
+            self.bar(x+15,335,242,w.spirit.energy,"#76b9aa")
+            self.text(f"Estabilidad {int(w.spirit.stability)}/100",x+15,351,19)
+            self.bar(x+15,374,242,w.spirit.stability,"#b19bd2")
+            state="Libre" if w.place=="office" else "Crítico" if w.spirit.stability<20 else "Inestable" if w.distance>w.spirit.radius else "Estable"
+            self.panel((x+12,389,248,54),"#383344")
+            self.text("Refugio sin límite" if w.place=="office" else f"Distancia {w.distance}/{w.spirit.radius}",x+22,395,21,MINT,True)
+            self.text(state,x+22,420,18,"#e8ae8a" if state in ("Crítico","Inestable") else MINT)
+        else:self.wrap("WASD o flechas: caminar. E: interacción.",x+15,292,237,21,MUTED,limit=3)
+        if w.alert_enabled():
+            npcs=[(abs(o[0]-w.x)+abs(o[1]-w.y),key,o) for key,o in w.objects.items() if o[3]=="npc"]
+            if npcs:
+                _,key,o=min(npcs);v=w.alert_value(key)
+                state="Alarmado" if v>=75 else "Inquieto" if v>=50 else "Atento" if v>=25 else "Tranquilo"
+                self.text("ALERTA · "+o[2].split(",")[0][:16],x+15,455,18,GOLD,True)
+                self.text(state+f" · {int(v)}",x+15,478,18,INK)
+                self.bar(x+15,503,242,v,"#e49e79" if v>=50 else "#a9c791")
         enabled=w.place in CASES or (w.place=="office" and w.stage=="agency")
         self.button((x+15,535,242,40),"TAB · EXPEDIENTES","tab",enabled,True)
+
     def draw_log(self):
         w=self.world;k=self.current_target()
         self.panel((16,605,960,99))
         self.text("INTERACCIÓN",29,614,18,GOLD,True)
-        self.wrap(w.objects[k][2] if k else "Acércate al marcador dorado",29,636,263,23,INK,True,2)
-        self.button((29,668,112,27),"E · USAR","e")
-        self.button((148,668,143,27),"ESP · PODER","space",w.place in CASES and w.companion_present)
-        self.text("BITÁCORA",312,614,18,GOLD,True)
-        if w.log:self.wrap(w.log[-1],312,636,650,20,INK,limit=3)
+        self.wrap(w.objects[k][2] if k else "Acércate al marcador dorado",29,636,280,20,INK,True,1)
+        verb,enabled=w.interaction(k);power,valid=w.power_action(k)
+        self.button((29,668,140,27),"E · "+verb.upper(),"e",enabled)
+        self.button((176,668,140,27),"ESP · "+power.upper(),"space",valid)
+        self.text("BITÁCORA",333,614,18,GOLD,True)
+        if w.log:self.wrap(w.log[-1],333,636,625,20,INK,limit=3)
         self.panel((SIDE_X,605,272,99))
-        self.text("WASD · Mover   Q · Cambiar",SIDE_X+11,615,18)
-        self.text("F · Objetivo   R · Regresar",SIDE_X+11,638,18)
-        self.text("C · Equipo   F5/F9 · Guardar",SIDE_X+11,661,17,MUTED)
-        self.text("F3 · FPS",SIDE_X+11,682,16,MUTED)
+        self.text("WASD · Mover",SIDE_X+13,619,20)
+        self.text("Esc · Ayuda y pausa",SIDE_X+13,650,20,MINT)
+        self.text("F3 · FPS",SIDE_X+13,678,17,MUTED)
+
     def draw_modal(self):
         overlay=pg.Surface(SIZE,pg.SRCALPHA);overlay.fill((10,9,17,85 if self.modal=="dialogue" else 205));self.frame.blit(overlay,(0,0))
         # Underlying buttons are not active while the modal is open.
@@ -347,7 +396,7 @@ class Game:
             self.button((470,382,340,50),"CONTINUAR","continue",SAVE.exists())
             self.button((470,444,340,50),"SALIR","quit")
             if self.result:self.wrap(self.result,235,535,810,22,GOLD)
-            self.text("Prototipo Python 0.5",640,625,19,MUTED,False,True)
+            self.text("Prototipo Python 0.5.1",640,625,19,MUTED,False,True)
             return
         if self.modal=="dialogue":
             self.panel((197,395,886,255),"#292738","#b39b87")
@@ -360,6 +409,12 @@ class Game:
             self.wrap(line,354,467,674,27,INK,limit=4)
             self.text(f"{self.dialogue_index+1}/{len(self.dialogue)}",354,603,18,MUTED)
             self.button((804,595,247,40),"CONTINUAR · E / ENTER","next_dialogue",accent=True)
+            return
+        if self.modal=="rafael_choice":
+            self.text("EL ENCARGO DE RAFAEL",640,130,38,GOLD,True,True)
+            self.wrap("Tomás puede hacer preguntas antes de aceptar el encargo.",270,202,740,25,INK)
+            for i,(label,value) in enumerate((("¿Desde cuándo sucede?","when"),("¿Hay alguien dentro?","inside"),("Iré a revisar","accept"),("Dame un momento","later"))):
+                self.button((340,278+i*65,600,49),label,("rafael",value),True,value=="accept")
             return
         if self.modal=="pause":
             self.text("PAUSA",640,130,40,GOLD,True,True)

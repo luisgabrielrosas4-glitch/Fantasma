@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import pygame as pg
 from modelo import WIDTH, HEIGHT, WALLS, FURNITURE, CASES
 from campana import THEMES
+from niveles import LEVELS
 
 TILE=24
 W,H=WIDTH*TILE,HEIGHT*TILE
@@ -73,96 +74,146 @@ def seat(s,x,y,station=False):
     rect(s,blend(c,"#2d2936",.28),x+4,y+10,16,7)
     rect(s,"#ac927c",x+1,y+7,3,10);rect(s,"#ac927c",x+20,y+7,3,10)
 
-def build_map(place):
-    s=pg.Surface((W,H))
-    actual=place
-    place=THEMES.get(place,place)
-    floor,alternate,wall,trim,highlight=PALETTES[place]
-    s.fill(wall)
-    rng=random.Random({"cine":13,"office":43,"station":71}[place])
-    for y in range(1,HEIGHT-1):
-        for x in range(1,WIDTH-1):
-            px,py=x*TILE,y*TILE
-            rect(s,blend(floor,alternate,rng.random()*.55),px,py,TILE,TILE)
-            if place=="office":
-                for j in (0,8,16):
-                    line(s,floor,(px,py+j),(px+23,py+j))
-                    joint=(x*7+y*5+j)%21
-                    line(s,floor,(px+joint,py+j),(px+joint,py+j+7))
-                    rect(s,blend(floor,highlight,.21),px+2,py+j+2,12,1)
+def paint_prop(s,x,y,w,h,kind):
+    x,y,w,h=x*TILE,y*TILE,w*TILE,h*TILE
+    if kind=="seats":
+        for px in range(x,x+w,TILE):seat(s,px,y)
+    elif kind=="bench":
+        wood(s,x+2,y+3,w-4,h-6,"#68838a")
+        for px in range(x+5,x+w-5,12):rect(s,"#9fb0aa",px,y+4,2,h-9)
+    elif kind=="bed":
+        rect(s,"#344452",x+2,y+3,w-4,h-4)
+        rect(s,"#9cbdc0",x+5,y+2,w-10,h-7)
+        rect(s,"#e4e5d4",x+7,y+4,w-14,10)
+        rect(s,"#597d91",x+7,y+16,w-14,h-24)
+        for px in range(x+7,x+w-7,7):rect(s,"#7597a5",px,y+17,1,h-27)
+        rect(s,"#d0d7cc",x+2,y+1,w-4,3)
+    elif kind=="monitor":
+        wood(s,x+5,y+4,w-10,h-8,"#8ea8a4")
+        rect(s,"#243c46",x+8,y+6,w-16,h-20)
+        pts=[(x+9,y+19),(x+15,y+19),(x+20,y+12),(x+24,y+25),(x+30,y+19),(x+w-10,y+19)]
+        pg.draw.lines(s,"#a8e4ad",False,pts,1)
+    elif kind=="curtain":
+        rect(s,"#90b6bb",x,y+4,w,6)
+        for px in range(x,x+w,6):rect(s,"#d0ddd7",px,y+4,2,6)
+    elif kind in ("shelf","lockers","wardrobe"):
+        if kind=="shelf":
+            for py in range(y,y+h,TILE):shelf(s,x+1,py+1,w-2,py+x)
+        else:
+            wood(s,x+1,y+1,w-2,h-2,"#748c89" if kind=="lockers" else "#93715e")
+            for px in range(x+4,x+w-4,10):
+                rect(s,"#4b505a",px,y+4,1,h-9);rect(s,"#c9bb96",px+3,y+h//2,3,2)
+    elif kind in ("desk","table","counter","tools","projector","machine","pallet","cart"):
+        color={"machine":"#6d8585","tools":"#8d7961","projector":"#666578","counter":"#a3b2ae","pallet":"#9c7b59","cart":"#6b777e"}.get(kind,"#aa8464")
+        wood(s,x+1,y+1,w-2,h-2,color)
+        for i in range(x+6,x+w-5,18):
+            if kind=="machine":
+                ellipse(s,"#293d45",i,y+5,13,12);ellipse(s,"#a1b1a4",i+3,y+8,7,6)
+            elif kind=="tools":
+                line(s,"#d4c6ab",(i,y+6),(i+9,y+13),2);ellipse(s,"#49555a",i,y+4,6,5)
+            elif kind=="projector":
+                rect(s,"#343644",i,y+5,13,10);ellipse(s,"#9aaca8",i+9,y+7,6,5)
             else:
-                line(s,wall,(px,py),(px+23,py))
-                line(s,wall,(px,py),(px,py+23))
-                line(s,blend(floor,highlight,.35),(px+1,py+1),(px+22,py+1))
-                for _ in range(3):rect(s,alternate,px+rng.randrange(2,20),py+rng.randrange(3,21),2,1)
-    # Perimeter moulding and windows with mullions, exterior rain streaks.
-    rect(s,wall,0,0,W,24)
-    rect(s,trim,0,17,W,4);rect(s,highlight,0,17,W,1)
-    for x in (26,126,273,396):
-        rect(s,"#211f2d",x,1,42,17)
-        rect(s,"#686f83" if place!="office" else "#80777c",x+3,3,36,12)
-        for j in (8,20,32):rect(s,"#a1a5af",x+j,4,1,8)
-        rect(s,wall,x+20,2,2,14);rect(s,wall,x+2,8,38,2)
-        rect(s,trim,x-2,15,46,3)
-    if place=="cine":
-        rug(s,74,132,99,89,"#714653","#b07980")
-        # Projection screen, velvet curtains and seats.
-        rect(s,"#2e2735",44,26,139,23)
-        rect(s,"#c5bbad",50,28,126,15)
-        rect(s,"#83726e",50,42,126,2)
-        for x in (34,178):
-            rect(s,"#673747",x,25,16,31)
-            for j in (1,5,9,13):rect(s,"#9b5968",x+j,25,2,26)
-        shelf(s,272,26,58,11);shelf(s,397,26,54,12)
-        shelf(s,420,206,34,14)
-    elif place=="office":
-        rug(s,114,128,115,75,"#765768","#c4a07a")
-        shelf(s,25,26,56,15);shelf(s,257,26,74,16);shelf(s,383,26,62,17)
-        # Meeting table on its exact physical footprint.
-        wood(s,6*TILE+2,6*TILE+3,3*TILE-4,2*TILE-6,"#a48261")
-        rect(s,"#e4d1ae",159,154,12,9);rect(s,"#6e877c",187,155,9,7)
-        rect(s,"#c6b6a1",167,169,8,8);rect(s,"#55434a",180,178,20,4)
-        for x,y in ((27,49),(449,53),(437,212)):
-            rect(s,"#ad7656",x,y+15,12,8)
-            poly(s,"#6c9473",[(x+6,y+17),(x,y+5),(x+5,y+9),(x+7,y),(x+10,y+11),(x+15,y+4),(x+12,y+17)])
-            rect(s,"#9ab68a",x+5,y+4,2,11)
-    else:
-        rug(s,28,111,112,70,"#4c626a","#879b91")
-        shelf(s,271,26,64,18);shelf(s,395,26,55,19)
-        rect(s,"#28363e",24,HEIGHT*TILE-24,W-48,9)
-        rect(s,"#c4ac70",24,HEIGHT*TILE-24,W-48,2)
-        for x in range(26,W-28,12):rect(s,"#7b7364",x,HEIGHT*TILE-16,6,1)
-        # Clock in the non-walkable wall strip.
-        ellipse(s,"#bfaa83",230,2,17,17);ellipse(s,"#dad1b7",232,4,13,13)
-        line(s,"#5e5254",(238,10),(238,5));line(s,"#5e5254",(238,10),(242,12))
-    for x,y in sorted(FURNITURE[actual]):
-        if place!="office":seat(s,x*TILE,y*TILE,place=="station")
-    if actual in CASES:
-        for x,y in sorted(WALLS):
+                rect(s,"#d5c4a5",i,y+5,9,6);line(s,"#907660",(i+1,y+8),(i+7,y+8))
+    elif kind=="sofa":
+        rect(s,"#513c47",x+1,y+1,w-2,h-2);rect(s,"#a16a70",x+4,y+3,w-8,h-7)
+        rect(s,"#c08b87",x+4,y+3,w-8,5)
+        for px in range(x+8,x+w-5,18):line(s,"#704b59",(px,y+9),(px,y+h-6))
+    elif kind=="screen":
+        rect(s,"#2d2735",x,y,w,h)
+        rect(s,"#e0d6c4",x+4,y+3,w-8,h-7)
+        rect(s,"#845063",x,y,4,h);rect(s,"#845063",x+w-4,y,4,h)
+    elif kind=="garden":
+        rect(s,"#536e59",x,y,w,h)
+        for py in range(y+3,y+h-3,11):
+            for px in range(x+4,x+w-3,13):rect(s,"#78966a",px,py,3,2)
+    elif kind=="fountain":
+        ellipse(s,"#b4aaa0",x+3,y+3,w-6,h-6);ellipse(s,"#709fa4",x+8,y+8,w-16,h-16)
+        ellipse(s,"#ccd8c9",x+w//2-6,y+h//2-6,12,12)
+    elif kind=="plant":
+        rect(s,"#ae7655",x+w//2-5,y+h-11,10,8)
+        poly(s,"#729e72",[(x+w//2,y+2),(x+3,y+8),(x+w//2-3,y+h-8),(x+w-3,y+7)])
+    elif kind=="coat":
+        line(s,"#bba288",(x+w//2,y+2),(x+w//2,y+h-2),2)
+        poly(s,"#997c62",[(x+6,y+5),(x+w-6,y+5),(x+w-4,y+h-3),(x+4,y+h-3)])
+    elif kind=="lamp":
+        rect(s,"#676b70",x+11,y,3,h);ellipse(s,"#e5cb8d",x+6,y+1,14,7)
+    elif kind=="crosswalk":
+        for px in range(x+2,x+w-2,13):rect(s,"#92928e",px,y+4,7,h-8)
+    elif kind=="tracks":
+        for py in (y+6,y+h-8):rect(s,"#9e9990",x,py,w,3)
+        for px in range(x,x+w,13):rect(s,"#786b60",px,y+2,4,h-4)
+    elif kind=="tape":
+        for py in range(y,y+h,6):rect(s,"#d6b65d",x+6,py,12,3)
+
+def build_map(place):
+    l=LEVELS[place];mw,mh=l.size;ww,hh=mw*TILE,mh*TILE
+    s=pg.Surface((ww,hh));theme=l.theme
+    colors={"hospital":("#617e88","#a4b2b0","#394f5a"),"house":("#856a54","#b39170","#51424a"),
+            "street":("#424b57","#727e86","#563d42"),"cine":("#624453","#a06972","#382b3c"),
+            "office":("#80674f","#b39a76","#493846"),"station":("#5a7078","#91a39e","#364652"),
+            "workshop":("#69746e","#a4a28e","#45494d"),"ruiz":("#8c7560","#b9a182","#57464b"),
+            "archive":("#6c5e53","#a99a7c","#3c3544")}
+    floor,hi,wall=colors[theme];rng=random.Random(place);s.fill(wall)
+    for y in range(1,mh-1):
+        for x in range(1,mw-1):
             px,py=x*TILE,y*TILE
-            rect(s,"#211f2b",px+4,py+2,20,24)
-            rect(s,wall,px,py,18,24)
-            rect(s,alternate,px+2,py+2,14,8)
-            rect(s,floor,px+2,py+13,14,9)
-            rect(s,trim,px,py,2,24);rect(s,"#272331",px+17,py,3,24)
-            rect(s,highlight,px+2,py+2,12,1)
+            c=blend(floor,hi,rng.random()*.24)
+            if theme=="street":c=blend("#333c48" if y>=11 else "#747981",hi,rng.random()*.08)
+            rect(s,c,px,py,TILE,TILE)
+            if theme in ("house","office"):
+                for yy in (0,8,16):
+                    line(s,wall,(px,py+yy),(px+23,py+yy))
+                    line(s,blend(floor,hi,.4),(px+2,py+yy+2),(px+20,py+yy+2))
+            else:
+                line(s,blend(floor,wall,.36),(px,py),(px+23,py))
+                line(s,blend(floor,wall,.36),(px,py),(px,py+23))
+            for _ in range(2):rect(s,blend(floor,hi,.19),px+rng.randrange(2,21),py+rng.randrange(2,21),2,1)
+    # El trazado de muros, no la paleta, determina la arquitectura.
+    for x,y in sorted(l.walls):
+        px,py=x*TILE,y*TILE
+        rect(s,"#282735",px,py,TILE,TILE)
+        rect(s,wall,px+1,py+1,TILE-3,TILE-4)
+        rect(s,hi,px+1,py+1,TILE-3,2)
+        if theme=="street":
+            for yy in (6,12,18):
+                line(s,"#372c38",(px,py+yy),(px+23,py+yy))
+                line(s,"#372c38",(px+(x+y+yy)%17,py+yy-5),(px+(x+y+yy)%17,py+yy))
+    if theme=="street":
+        rect(s,"#302734",10*TILE,2*TILE,17*TILE,2*TILE)
+        rect(s,"#b89a70",10*TILE+4,2*TILE+4,17*TILE-8,2*TILE-8)
+        font=pg.font.Font(None,34)
+        s.blit(font.render("CINE AURORA",True,"#523943"),(15*TILE,2*TILE+10))
+        for x in (4,7,29):rect(s,"#3c4650",x*TILE,4*TILE,2*TILE,2*TILE)
+        line(s,"#c2b8a0",(TILE,11*TILE),(ww-TILE,11*TILE),2)
+    for prop in l.props:paint_prop(s,*prop[:5])
+    if place=="final":
+        for x in range(26,36):
+            rect(s,"#d0b15f",x*TILE,6*TILE+5,12,3)
+    # Señalética pequeña, diferente por habitación.
+    font=pg.font.Font(None,16)
+    for x,y,w,h,name in l.regions:
+        if theme=="street" and y==1:continue
+        label=font.render(name,False,"#e2d7c1")
+        p=label.get_rect(topleft=(x*TILE+5,y*TILE+3))
+        rect(s,"#32343b",p.x-2,p.y-1,p.w+4,p.h+2);s.blit(label,p)
+    for x,y in l.doors:
+        rect(s,"#b99c75",x*TILE,y*TILE,TILE,2)
     return s
 
 def light_mask(place):
-    # Cached low-resolution radial illumination; multiply after drawing actors.
-    small=pg.Surface((W//4,H//4))
+    l=LEVELS[place];ww,hh=l.size[0]*TILE,l.size[1]*TILE
+    small=pg.Surface((max(1,ww//8),max(1,hh//8)))
+    lights=[((x+w/2)*TILE,(y+h/2)*TILE,max(w,h)*TILE*.72) for x,y,w,h,_ in l.regions]
+    ambient=150 if l.theme in ("hospital","house","office") else 122
     for y in range(small.get_height()):
         for x in range(small.get_width()):
-            px,py=x*4,y*4
-            values=[118.,119.,140.]
-            for lx,ly,radius,color in LIGHTS[THEMES.get(place,place)]:
-                d=math.hypot(px-lx,py-ly)
-                if d<radius:
-                    f=(1-d/radius)**1.45
-                    for i in range(3):values[i]+=color[i]*.68*f
-            edge=min(1.,min(px,py,W-1-px,H-1-py)/28)
-            small.set_at((x,y),tuple(max(0,min(255,int(v*(.78+.22*edge)))) for v in values))
-    return pg.transform.smoothscale(small,(W,H))
+            val=ambient
+            for lx,ly,r in lights:
+                d=math.hypot(x*8-lx,y*8-ly)
+                if d<r:val+=65*(1-d/r)
+            v=min(255,int(val));small.set_at((x,y),(v,min(255,v+4),min(255,v+12)))
+    return pg.transform.smoothscale(small,(ww,hh))
 
 def glow(radius,color):
     s=pg.Surface((radius*2+1,radius*2+1))
@@ -178,6 +229,12 @@ def actor_sprite(name,ghost,direction="down",frame=0,weak=False):
     """24x38 pixel sprite: silhouette, shaded clothing, directional walk."""
     s=pg.Surface((24,38),pg.SRCALPHA)
     if ghost:
+        if name=="Mora":
+            poly(s,"#496e74",[(3,26),(5,13),(5,7),(10,12),(15,7),(19,14),(20,26),(16,30),(6,30)])
+            poly(s,"#a6d8cc",[(5,25),(6,14),(7,10),(11,15),(15,10),(17,15),(18,26),(14,28),(7,28)])
+            rect(s,"#304651",8,17,2,3);rect(s,"#304651",14,17,2,3)
+            line(s,"#93c7b9",(17,26),(22,19),3)
+            return s
         brizna=name=="Brizna"
         dark="#44766f" if brizna else "#5f7297"
         mid="#82c9b7" if brizna else ("#92aed8" if name=="Mateo" else "#b4a0cf")
@@ -201,7 +258,7 @@ def actor_sprite(name,ghost,direction="down",frame=0,weak=False):
         rect(s,light,5,21,1,3)
         return s
     # Detective and townspeople. Four directions, asymmetric highlights.
-    coat="#b38b65" if name=="Tomás" else ("#829e9b" if name=="Inés" else "#7a8b9d")
+    coat="#b38b65" if name=="Tomás" else "#d8e5dc" if name=="Enfermera" else ("#829e9b" if name=="Inés" else "#7a8b9d")
     shade=blend(coat,"#3b3443",.45)
     hi=blend(coat,"#eed7b4",.35)
     skin="#d9ae90";shadow="#a87869";hair="#4b3840";ink="#302b39"
@@ -226,6 +283,9 @@ def actor_sprite(name,ghost,direction="down",frame=0,weak=False):
     rect(s,shadow,8,13,8,2)
     rect(s,hair,6,3,12,4)
     rect(s,"#76554e",8,2,7,2)
+    if name=="Enfermera":
+        rect(s,"#eff2e3",6,2,13,4);rect(s,"#be6c75",11,2,3,1);rect(s,"#be6c75",12,1,1,3)
+        rect(s,"#7ca8a6",8,22,3,5)
     if name=="Tomás":
         # Greying temples and long coat make the retired detective recognizable.
         rect(s,"#a0998d",6,7,2,4);rect(s,"#a0998d",16,7,2,4)
@@ -305,6 +365,9 @@ class Motor:
         self.maps={};self.lights={};self.sprites={};self.props={};self.motions={}
         self.place=None;self.time=0.;self.background_builds=0
         self.scene=pg.Surface((W,H))
+        self.camera=(0.,0.)
+        self.view=pg.Surface((W,H))
+        self.route_key=None;self.route=[]
         self.aura=glow(24,(20,61,48))
         self.lamp=glow(38,(55,36,12))
         self.font=pg.font.Font(None,14)
@@ -325,6 +388,8 @@ class Motor:
         if key not in self.motions:self.motions[key]=Motion(x,y,x,y)
         m=self.motions[key]
         px,py=m.advance(x,y,dt)
+        # La posición de dibujo nunca queda en la casilla liberada de otra entidad.
+        px,py=x,y
         return round(px*TILE+TILE/2),round(py*TILE+TILE/2),m
     def actor(self,identity,x,y,name,ghost,dt,weak=False,active=False):
         cx,cy,m=self.position(identity,x,y,dt)
@@ -333,12 +398,22 @@ class Motor:
         if ghost:cy+=round(math.sin(self.time*4+len(name))*2)
         frame=(int(self.time*3)%2 if ghost else int(m.phase)%4 if m.moving else 0)
         sprite=self.get_sprite(name,ghost,m.direction,frame,weak)
-        self.scene.blit(sprite,(cx-12,cy-25))
+        # Mantener la silueta dentro de la casilla evita cubrir al vecino.
+        sprite=pg.transform.scale(sprite,(17,25))
+        self.scene.blit(sprite,(cx-8,cy-17))
         return cx,cy
     def draw(self,w,dt=0.,target=None,goal=None):
         dt=max(0.,min(.15,dt));self.time+=dt
-        if self.place!=w.place:self.place=w.place;self.reset_motion()
-        self.load_map(w.place);self.scene.blit(self.maps[w.place],(0,0))
+        changed=self.place!=w.place
+        if changed:self.place=w.place;self.reset_motion()
+        self.load_map(w.place)
+        bg=self.maps[w.place]
+        if self.scene.get_size()!=bg.get_size():self.scene=pg.Surface(bg.get_size())
+        self.scene.blit(bg,(0,0))
+        maxx,maxy=max(0,bg.get_width()-W),max(0,bg.get_height()-H)
+        cx=min(maxx,max(0,w.pos[0]*TILE+12-W/2));cy=min(maxy,max(0,w.pos[1]*TILE+12-H/2))
+        if changed or dt==0:self.camera=(cx,cy)
+        else:self.camera=tuple(v+(t-v)*min(1,dt*12) for v,t in zip(self.camera,(cx,cy)))
         labels=[];glows=[]
         if w.ghost_mode and w.anchor is not None:
             ax,ay=w.anchor;cx,cy=ax*TILE+12,ay*TILE+12
@@ -360,7 +435,7 @@ class Motor:
                 name=w.active if ghost else "Tomás"
                 x,y=(w.gx,w.gy) if ghost else (w.x,w.y)
                 cx,cy=self.actor(k+name,x,y,name,ghost,dt,ghost and w.spirit.stability<40,w.ghost_mode==ghost)
-                labels.append((cx,cy-29,name,ghost))
+                if w.ghost_mode==ghost:labels.append((cx,cy-20,name,ghost))
                 if ghost:glows.append((cx,cy-5))
             else:
                 x,y,name,kind=o;cx,cy=x*TILE+12,y*TILE+12
@@ -370,11 +445,18 @@ class Motor:
                         if w.active=="Brizna":
                             self.scene.blit(self.get_prop("home",k,False),(cx-16,cy-20));continue
                     cx,cy=self.actor(k,x,y,name,kind=="ghost",dt,k=="guest" and not w.guest_decision)
-                    labels.append((cx,cy-29,name,kind=="ghost"))
+                    if k==target or k==goal:labels.append((cx,cy-20,name,kind=="ghost"))
+                    if kind=="npc" and w.alert_value(k)>=25:
+                        c="#ed9c7b" if w.alert_value(k)>=75 else "#e3c175"
+                        rect(self.scene,c,cx-7,cy+10,round(14*w.alert_value(k)/100),2)
                     if kind=="ghost":glows.append((cx,cy-5))
                 else:
-                    opened=(w.permissions.get(w.place,False) or w.distracted>0) if kind=="door" else False
+                    opened=(w.access() or w.distracted>0) if kind=="door" else False
                     self.scene.blit(self.get_prop(kind,k,opened),(cx-16,cy-20))
+        # Puertas adicionales comparten la misma regla y su aspecto visible.
+        for dx,dy in LEVELS[w.place].doors:
+            if w.objects.get("door",(-1,-1))[:2]==(dx,dy):continue
+            self.scene.blit(self.get_prop("door","extra",w.access() or w.distracted>0),(dx*TILE-4,dy*TILE-8))
         # Lighting affects the whole scene, then supernatural emission adds glow.
         self.scene.blit(self.lights[w.place],(0,0),special_flags=pg.BLEND_RGB_MULT)
         for cx,cy in glows:
@@ -387,9 +469,13 @@ class Motor:
             x,y,*_=w.objects["radio"];cx,cy=x*TILE+12,y*TILE+12
             self.scene.blit(self.lamp,(cx-38,cy-38),special_flags=pg.BLEND_RGB_ADD)
         # Readable names and interaction corners are not darkened.
+        placed=[]
         for cx,cy,name,ghost in labels:
             text=self.font.render(name,False,MINT if ghost else "#efdec3")
             p=text.get_rect(midbottom=(cx,max(11,cy)))
+            while any(p.inflate(4,4).colliderect(q) for q in placed):p.y-=text.get_height()+4
+            if p.top<0:continue
+            placed.append(p.copy())
             rect(self.scene,"#292633",p.x-2,p.y-1,p.w+4,p.h+2)
             self.scene.blit(text,p)
         if goal in w.objects:
@@ -401,4 +487,18 @@ class Motor:
             px,py=x*TILE+1,y*TILE+1
             for a,b in [((px,py+5),(px,py)),((px,py),(px+5,py)),((px+21,py),(px+16,py)),((px+21,py),(px+21,py+5)),((px,py+21),(px,py+16)),((px,py+21),(px+5,py+21)),((px+21,py+21),(px+16,py+21)),((px+21,py+21),(px+21,py+16))]:
                 line(self.scene,"#d5f1c9",a,b,2)
-        return self.scene
+        if goal in w.objects:
+            key=(w.place,w.pos,goal,w.ghost_mode,w.anchor,w.access(),w.distracted>0,tuple((k,o[:2]) for k,o in w.objects.items()))
+            if key!=self.route_key:self.route_key=key;self.route=w.route_to(goal)
+            for x,y in self.route[1:]:
+                pg.draw.circle(self.scene,"#c8aa73",(x*TILE+12,y*TILE+12),2)
+        self.view.fill("#282633")
+        ox,oy=map(round,self.camera)
+        self.view.blit(self.scene,(0,0),pg.Rect(ox,oy,W,H))
+        if goal in w.objects:
+            gx,gy=w.objects[goal][:2];px,py=gx*TILE+12-ox,gy*TILE+12-oy
+            if not (12<=px<W-12 and 12<=py<H-12):
+                ex,ey=max(12,min(W-12,px)),max(12,min(H-12,py))
+                pg.draw.circle(self.view,"#e8c589",(round(ex),round(ey)),7)
+                pg.draw.circle(self.view,"#584333",(round(ex),round(ey)),3)
+        return self.view

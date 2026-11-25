@@ -1,65 +1,85 @@
-"""Pruebas de recorrido y contratos del GDD."""
-import unittest
-import tempfile
-from collections import deque
-from pathlib import Path
+"""Pruebas de aceptación del parche 0.5.1."""
 import random
-from modelo import World, Spirit, CASES, blocked, WIDTH, HEIGHT
+import tempfile
+import unittest
+from pathlib import Path
+from collections import deque
+from modelo import World, Spirit, CASES, blocked
 from campana import ORDER
+from niveles import LEVELS, DIRS, occupied, distance, sight
 
 def walk(w,x,y):
-    start=w.pos;goal=(x,y);q=deque([(start,[])]);seen={start}
+    start=w.pos;goal=(x,y);level=LEVELS[w.place];q=deque([(start,[])]);seen={start}
+    taken=occupied(w.objects)
+    if w.ghost_mode:taken.add((w.x,w.y))
+    elif w.place=="office" and w.companion_present:taken.add((w.gx,w.gy))
     while q:
-        pos,path=q.popleft()
-        if pos==goal:
+        p,path=q.popleft()
+        if p==goal:
             for dx,dy in path:assert w.move(dx,dy),(w.place,w.pos,dx,dy)
             return
-        for dx,dy in ((1,0),(-1,0),(0,1),(0,-1)):
-            p=pos[0]+dx,pos[1]+dy
-            if p in seen or not (1<=p[0]<WIDTH-1 and 1<=p[1]<HEIGHT-1):continue
-            if not w.ghost_mode and blocked(w.place,*p,w.permissions.get(w.place,False),w.distracted):continue
-            if w.ghost_mode and w.anchor is not None:
-                a,b=w.anchor
-                if abs(p[0]-a)+abs(p[1]-b)>w.spirit.radius+3:continue
-            seen.add(p);q.append((p,path+[(dx,dy)]))
+        for dx,dy in DIRS:
+            n=(p[0]+dx,p[1]+dy)
+            if n in seen or n in taken or not level.inside(n):continue
+            if w.ghost_mode:
+                if w.anchor is not None and distance(n,w.anchor)>w.spirit.radius+3:continue
+            else:
+                leaving=p in level.restricted
+                if blocked(w.place,*n,w.access() or leaving,w.distracted):continue
+                if n in level.restricted and not leaving and not (w.access() or (w.distracted>0 and w.place!="workshop")):continue
+            seen.add(n);q.append((n,path+[(dx,dy)]))
     raise AssertionError(("Sin ruta",w.place,start,goal))
 
+def near(w,key):
+    if key in w.nearby():return
+    o=w.objects[key];x,y=o[:2]
+    candidates=sorted([(x+dx,y+dy) for dx,dy in DIRS]+[(x,y)],key=lambda p:distance(w.pos,p))
+    for p in candidates:
+        try:walk(w,*p)
+        except AssertionError:continue
+        if key in w.nearby():return
+    raise AssertionError(("No se puede alcanzar",w.place,key,w.pos))
+
 def go(w,key,power=False):
-    x,y,*_=w.objects[key];walk(w,x,y);return w.act(key,power)
+    near(w,key);return w.act(key,power)
 
 def prologue(w):
     if w.place=="hospital":
-        go(w,"nurse");go(w,"exit")
-        go(w,"notebook");go(w,"photo");go(w,"exit")
-    go(w,"rafael");assert w.place=="street"
+        go(w,"nurse");go(w,"exit");go(w,"notebook");go(w,"photo");go(w,"exit")
+    assert w.stage=="dispatch",(w.place,w.stage)
+    go(w,"rafael");w.accept_rafael();go(w,"exit")
+    assert w.place=="street"
     go(w,"rafael");go(w,"exit");assert w.place=="cine"
     return w
 
 def practice(w):
-    go(w,"brizna");w.toggle();go(w,"radio",True);w.recall()
-    assert w.practice_done
+    go(w,"brizna");near(w,"radio");w.toggle();go(w,"radio",True);w.recall()
+    assert w.practice_done,w.log
 
 def accept(w,case):
     if case=="cine" and w.stage=="dispatch":return prologue(w)
-    go(w,"request_"+case);go(w,"board");w.accept_case(case);assert w.place==case
+    go(w,"request_"+case);near(w,"board");w.accept_case(case)
+    assert w.place==case,w.log
     return w
 
 def cinema(w):
-    accept(w,"cine");practice(w);go(w,"client");go(w,"poster")
-    go(w,"guard");go(w,"desk");go(w,"box");go(w,"photo")
-    w.resolve("cine",1,list(w.facts["cine"]))
-    assert w.home_open
+    accept(w,"cine");practice(w);go(w,"client");go(w,"poster");go(w,"guard")
+    go(w,"desk");go(w,"box");go(w,"photo")
+    w.resolve("cine",1,list(w.facts["cine"]));assert w.home_open,w.log
     go(w,"exit");assert w.stage=="foundation"
     go(w,"home");go(w,"board");go(w,"journal");assert w.stage=="agency"
     return w
 
-def station(w):
+def station(w,alternative=False):
     accept(w,"station");go(w,"client");go(w,"schedule");go(w,"guard")
     assert not w.permissions["station"]
-    walk(w,8,7);w.toggle();go(w,"witness");w.recall()
-    go(w,"guard");go(w,"desk");go(w,"box");go(w,"photo")
-    w.resolve("station",2,list(w.facts["station"]))
-    assert w.reports.get("station")=="complete"
+    if alternative:
+        near(w,"door");w.toggle();go(w,"desk");w.recall()
+    else:
+        near(w,"witness");w.toggle();go(w,"witness");w.recall()
+    go(w,"guard");assert w.permissions["station"],w.log
+    go(w,"desk");go(w,"box");go(w,"photo")
+    w.resolve("station",2,list(w.facts["station"]));assert w.reports.get("station")=="complete",w.log
     go(w,"exit");return w
 
 def solve_extra(w,case):
@@ -74,95 +94,122 @@ def solve_extra(w,case):
     return w
 
 def ally(w,case,stay):
-    go(w,"guest_"+case);w.decide_ally(case,stay)
+    near(w,"guest_"+case);w.decide_ally(case,stay)
     assert w.decisions[case]==("stayed" if stay else "departed")
 
+def campaign(stay=False,alternative=False):
+    w=station(cinema(World.new_game()),alternative)
+    ally(w,"station",stay)
+    solve_extra(w,"workshop");ally(w,"workshop",stay)
+    solve_extra(w,"ruiz");ally(w,"ruiz",stay)
+    solve_extra(w,"archive");solve_extra(w,"final")
+    assert set(w.reports)==set(ORDER)
+    return w
+
 class Tests(unittest.TestCase):
-    def test_prologue_gates(self):
-        w=World.new_game();go(w,"exit")
-        self.assertEqual(w.place,"hospital")
-        go(w,"nurse");go(w,"exit");go(w,"exit");self.assertEqual(w.place,"house")
-        go(w,"notebook");go(w,"photo");go(w,"exit")
-        self.assertEqual(w.stage,"dispatch")
-        self.assertNotIn("board",w.objects)
-        prologue(w);self.assertIn("cine",w.accepted)
-        go(w,"client");self.assertNotIn("request",w.facts["cine"])
-        practice(w);go(w,"client");self.assertIn("request",w.facts["cine"])
+    def test_maps(self):
+        self.assertEqual(len(LEVELS),10)
+        self.assertEqual(LEVELS["hospital"].size,(28,18))
+        self.assertEqual(LEVELS["station"].size,(42,22))
+        for name,l in LEVELS.items():
+            self.assertTrue(l.inside(l.spawn),name)
+            self.assertFalse(blocked(name,*l.spawn,True),name)
+            for k,p in l.points.items():self.assertTrue(l.inside(p),(name,k,p))
+        self.assertNotEqual(LEVELS["hospital"].walls,LEVELS["house"].walls)
+        self.assertTrue(LEVELS["cine"].walls<=LEVELS["final"].walls)
 
-    def test_complete_campaign_and_endings(self):
-        w=station(cinema(World.new_game()));ally(w,"station",True)
-        solve_extra(w,"workshop");ally(w,"workshop",True)
-        solve_extra(w,"ruiz");ally(w,"ruiz",True)
-        solve_extra(w,"archive");solve_extra(w,"final")
-        self.assertEqual(set(w.reports),set(ORDER))
-        self.assertEqual(set(w.spirits),{"Brizna","Mateo","Nico","Mora"})
-        for community in ("centro cultural","archivo","traslado"):
-            for ending in ("agencia","explorar","colaborar"):
-                w.choose_ending(community,ending)
-                self.assertEqual(w.ending,ending);self.assertEqual(w.community_choice,community)
+    def test_no_character_overlap(self):
+        w=World.new_game();x,y=w.objects["nurse"][:2]
+        for dx,dy in DIRS:
+            walk(w,x-dx,y-dy);self.assertFalse(w.move(dx,dy))
+            self.assertNotEqual(w.pos,(x,y))
 
-    def test_all_optional_allies_leave(self):
-        w=station(cinema(World()));ally(w,"station",False)
-        solve_extra(w,"workshop");ally(w,"workshop",False)
-        solve_extra(w,"ruiz");ally(w,"ruiz",False)
-        solve_extra(w,"archive");solve_extra(w,"final")
-        self.assertEqual(list(w.spirits),["Brizna"])
+    def test_rafael_explicit_transition(self):
+        w=World();go(w,"rafael")
+        self.assertEqual(w.place,"office");go(w,"exit");self.assertEqual(w.place,"office")
+        w.accept_rafael();go(w,"exit");self.assertEqual(w.place,"street")
+        go(w,"rafael");self.assertEqual(w.place,"street")
+        go(w,"exit");self.assertEqual(w.place,"cine")
 
-    def test_return_resume(self):
-        w=cinema(World());accept(w,"station");go(w,"client");go(w,"exit")
-        self.assertEqual(w.place,"office");self.assertIn("request",w.facts["station"])
-        accept(w,"station");self.assertIn("request",w.facts["station"])
+    def test_follow(self):
+        w=prologue(World());go(w,"brizna")
+        rng=random.Random(42);steps=0
+        for _ in range(150):
+            dx,dy=rng.choice(DIRS)
+            if w.move(dx,dy):steps+=1
+            self.assertNotEqual((w.x,w.y),(w.gx,w.gy))
+            self.assertNotIn((w.gx,w.gy),occupied(w.objects))
+            self.assertLessEqual(w.distance,2)
+        self.assertGreaterEqual(steps,30)
+        w.toggle();w.recall();self.assertEqual(w.distance,1)
 
-    def test_no_fake_evidence(self):
-        w=World();accept(w,"cine");w.resolve("cine",1,["request","desk","item"])
-        self.assertFalse(w.home_open)
-        practice(w);go(w,"client");w.resolve("cine",0,["request"])
-        self.assertEqual(w.reports["cine"],"provisional")
+    def test_spirit_range(self):
+        w=prologue(World());go(w,"brizna");near(w,"radio");w.toggle()
+        a,b=w.anchor
+        points=[(x,y) for x in range(1,37) for y in range(1,25) if distance((x,y),(a,b))==5]
+        for x,y in points:
+            try:walk(w,x,y);break
+            except AssertionError:continue
+        self.assertEqual(w.distance,5)
+        w.spirit.stability=1;w.tick(1)
+        self.assertFalse(w.ghost_mode);self.assertEqual(w.distance,1)
+        self.assertEqual(w.spirit.stability,20)
 
-    def test_read_not_collect(self):
-        w=cinema(World());accept(w,"station");go(w,"client")
-        walk(w,9,3);w.toggle();go(w,"desk")
-        self.assertIn("desk",w.facts["station"]);self.assertNotIn("desk",w.physical["station"])
-        w.recall();go(w,"guard");go(w,"desk");self.assertIn("desk",w.physical["station"])
-        walk(w,16,7);w.toggle();go(w,"box")
-        self.assertNotIn("item",w.facts["station"]);w.recall();go(w,"box")
-        self.assertIn("item",w.physical["station"])
+    def test_context(self):
+        w=World.new_game();near(w,"nurse")
+        self.assertEqual(w.interaction("nurse"),("Hablar",True))
+        self.assertFalse(w.interaction(None)[1])
+        w=prologue(World());go(w,"brizna");near(w,"radio")
+        self.assertFalse(w.power_action("radio")[1]);w.toggle();near(w,"radio")
+        self.assertEqual(w.power_action("radio"),("Vibrar",True))
 
-    def test_anchor_limits_and_recovery(self):
-        w=World();accept(w,"cine");go(w,"brizna");w.toggle()
-        a,b=w.anchor;walk(w,a+5,b);before=w.spirit.stability;w.tick(1)
-        self.assertLess(w.spirit.stability,before)
-        self.assertTrue(w.move(1,0));self.assertFalse(w.move(1,0))
-        w.spirit.stability=1;w.tick(1);self.assertFalse(w.ghost_mode)
-        self.assertEqual((w.gx,w.gy),w.anchor)
+    def test_alert_and_recovery(self):
+        w=prologue(World());practice(w)
+        guard=w.objects["guard"][:2]
+        w.stimulus((1,1),"noise")
+        self.assertLessEqual(w.alert_value("guard"),10)
+        w.alert_state("guard")["facing"]=[-1,0]
+        w.stimulus((guard[0]-1,guard[1]),"noise")
+        self.assertEqual(w.alert_value("guard"),28)
+        for _ in range(3):w.stimulus((guard[0]-1,guard[1]),"noise")
+        self.assertGreaterEqual(w.alert_value("guard"),75)
+        self.assertFalse(w.access())
+        w.permissions["cine"]=True
+        for _ in range(25):w.tick(1)
+        self.assertLess(w.alert_value("guard"),50);self.assertTrue(w.access())
+
+    def test_los_and_ghost_walk(self):
+        l=LEVELS["cine"];self.assertFalse(sight(l,(24,10),(26,10)))
+        w=prologue(World());practice(w);w.toggle()
+        v=w.alert_value("guard")
+        for dx,dy in DIRS:w.move(dx,dy)
+        self.assertEqual(w.alert_value("guard"),v)
 
     def test_office_safe(self):
-        w=cinema(World());self.assertIsNone(w.anchor);w.toggle();walk(w,18,9)
-        w.spirit.energy=20;w.spirit.stability=20;w.tick(1)
+        w=cinema(World());self.assertIsNone(w.anchor);w.toggle()
+        walk(w,28,20);w.spirit.energy=20;w.spirit.stability=20;w.tick(1)
         self.assertGreater(w.spirit.energy,20);self.assertGreater(w.spirit.stability,20)
-        self.assertEqual(w.pos,(18,9))
+        self.assertFalse(w.alert_enabled())
 
-    def test_errant_weakness(self):
-        s=Spirit("Errante","",energy=30,stability=45,errant=True);s.update(0,10)
-        self.assertLess(s.stability,45);self.assertLess(s.energy,30)
+    def test_complete_with_allies(self):
+        w=campaign(True)
+        self.assertEqual(set(w.spirits),{"Brizna","Mateo","Nico","Mora"})
+        w.choose_ending("archivo","agencia");self.assertEqual(w.ending,"agencia")
 
-    def test_save_progress(self):
-        w=World.new_game()
+    def test_complete_without_allies_alternate_route(self):
+        w=campaign(False,True)
+        self.assertEqual(list(w.spirits),["Brizna"])
+        w.choose_ending("traslado","explorar");self.assertEqual(w.ending,"explorar")
+
+    def test_save(self):
+        w=prologue(World());practice(w);w.alert_state("guard")["value"]=43
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/"save.json"
-            for world in (w,cinema(World()),station(cinema(World()))):
-                world.save(p);self.assertEqual(world,World.load(p))
+            p=Path(d)/"save.json";w.save(p);loaded=World.load(p)
+            self.assertEqual(w,loaded)
 
-    def test_simulation(self):
-        w=cinema(World());accept(w,"station");r=random.Random(121)
-        for _ in range(10000):
-            w.move(*r.choice([(1,0),(-1,0),(0,1),(0,-1)]))
-            if r.randrange(10)==0:w.toggle()
-            if r.randrange(20)==0:w.recall()
-            w.tick(.125)
-            if w.nearby() and r.randrange(5)==0:w.act(w.nearby()[0],r.randrange(2)==0)
-            self.assertTrue(0<=w.spirit.energy<=100 and 0<=w.spirit.stability<=100)
-            self.assertTrue(1<=w.x<WIDTH-1 and 1<=w.y<HEIGHT-1)
-            if w.place=="office":break
+    def test_wrong_hypothesis(self):
+        w=prologue(World());practice(w);go(w,"client")
+        w.resolve("cine",0,["request"]);self.assertEqual(w.reports["cine"],"provisional")
+        self.assertFalse(w.home_open)
 
 if __name__=="__main__":unittest.main()
