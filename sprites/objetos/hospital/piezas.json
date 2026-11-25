@@ -1,0 +1,128 @@
+{
+  "resolucion_casilla_px": 24,
+  "origen": "esquina superior izquierda",
+  "capas": [
+    "sombra",
+    "base",
+    "detalle"
+  ],
+  "mobiliario": {
+    "cama_clinica": {
+      "nombre": "Cama clínica",
+      "lienzo_px": [
+        72,
+        48
+      ],
+      "png": {
+        "sombra": "cama_clinica/sombra.png",
+        "base": "cama_clinica/base.png",
+        "detalle": "cama_clinica/detalle.png",
+        "sprite": "cama_clinica/sprite.png"
+      }
+    },
+    "monitor": {
+      "nombre": "Monitor ECG",
+      "lienzo_px": [
+        48,
+        48
+      ],
+      "png": {
+        "sombra": "monitor/sombra.png",
+        "base": "monitor/base.png",
+        "detalle": "monitor/detalle.png",
+        "sprite": "monitor/sprite.png"
+      }
+    },
+    "cortina": {
+      "nombre": "Cortina de privacidad",
+      "lienzo_px": [
+        72,
+        24
+      ],
+      "png": {
+        "sombra": "cortina/sombra.png",
+        "base": "cortina/base.png",
+        "detalle": "cortina/detalle.png",
+        "sprite": "cortina/sprite.png"
+      }
+    },
+    "mostrador": {
+      "nombre": "Mostrador de enfermería",
+      "lienzo_px": [
+        168,
+        48
+      ],
+      "png": {
+        "sombra": "mostrador/sombra.png",
+        "base": "mostrador/base.png",
+        "detalle": "mostrador/detalle.png",
+        "sprite": "mostrador/sprite.png"
+      }
+    },
+    "banca": {
+      "nombre": "Banca de espera",
+      "lienzo_px": [
+        72,
+        24
+      ],
+      "png": {
+        "sombra": "banca/sombra.png",
+        "base": "banca/base.png",
+        "detalle": "banca/detalle.png",
+        "sprite": "banca/sprite.png"
+      }
+    },
+    "jardinera": {
+      "nombre": "Jardinera",
+      "lienzo_px": [
+        48,
+        24
+      ],
+      "png": {
+        "sombra": "jardinera/sombra.png",
+        "base": "jardinera/base.png",
+        "detalle": "jardinera/detalle.png",
+        "sprite": "jardinera/sprite.png"
+      }
+    },
+    "archivador": {
+      "nombre": "Archivador",
+      "lienzo_px": [
+        24,
+        24
+      ],
+      "png": {
+        "sombra": "archivador/sombra.png",
+        "base": "archivador/base.png",
+        "detalle": "archivador/detalle.png",
+        "sprite": "archivador/sprite.png"
+      }
+    }
+  },
+  "accesorios": {
+    "terminal": {
+      "nombre": "Terminal",
+      "lienzo_px": [
+        24,
+        24
+      ],
+      "png": "accesorios/terminal.png"
+    },
+    "bandeja": {
+      "nombre": "Bandeja",
+      "lienzo_px": [
+        24,
+        24
+      ],
+      "png": "accesorios/bandeja.png"
+    },
+    "portapapeles": {
+      "nombre": "Portapapeles",
+      "lienzo_px": [
+        24,
+        24
+      ],
+      "png": "accesorios/portapapeles.png"
+    }
+  }
+}
