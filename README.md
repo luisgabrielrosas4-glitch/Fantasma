@@ -1,55 +1,41 @@
-# Agencia de espectros — prototipo Python 0.4
+# Agencia de espectros — prototipo Python 0.5
 
-Prototipo de escritorio en Python 3.10+ y Pygame-ce. Se reemplaza la presentación anterior de Tkinter; no hay una segunda versión del juego. Godot será la plataforma final después de validar el diseño.
+Implementación inicial del plan integral GDD 0.4. Prototipo de escritorio Python 3.10+ / Pygame-ce; Godot será la plataforma final. El código anterior se sustituye en main.
 
-## Arrancar en Windows
+## Instalar y jugar
 
-Extrae el ZIP del repositorio. En la carpeta del proyecto, ejecuta una sola vez:
-
+En la carpeta extraída:
 ```powershell
 py -m pip install -r requirements.txt
 ```
+Abre `Iniciar_demo.bat` o ejecuta `py demo_python/main.py`. Si no tienes el comando py usa python.
 
-Luego abre Iniciar_demo.bat o ejecuta `py demo_python/main.py`. Si tu instalación utiliza python en vez de py, usa ese comando. No es necesario instalar Godot. Se recomienda un entorno virtual si ya tienes instalado pygame clásico, porque comparte el nombre del módulo.
+## Primeros pasos
 
-## Campaña y hub
-
-Tomás es un expolicía retirado que ve espíritus después de un accidente. Comienza en su despacho provisional. Acércate al tablón, abre E o TAB y acepta El último boleto. Allí conoce a Brizna, una criatura nacida de las emociones del cine, nunca humana. Un vínculo provisional le permite colaborar cerca de Tomás; el vínculo estable nace al resolver el caso. La agencia se consolida y desbloquea La maleta sin dueño. Mateo es un espíritu errante debilitado; al resolver su caso puede quedarse voluntariamente o despedirse.
-
-- Oficina: refugio separado, sin radio de alcance ni penalización por distancia. Todos los aliados vinculados recuperan recursos. Se aceptan expedientes en el tablón y se selecciona equipo; no se entra a otro caso caminando directamente desde una misión.
-- Misión: el único ancla espacial del compañero es Tomás. Fuera del radio cae la estabilidad, y agotarla obliga a regresar junto a él. Los fantasmas pueden leer y escuchar, pero no recuperar recuerdos ni leer mentes. No pueden extraer pruebas físicas de cajas cerradas.
-- Regresar al despacho por la salida conserva las pistas; un expediente abierto puede continuarse. Brizna no abandona el cine hasta completar el primero. La conclusión se presenta durante la misión; en la oficina los expedientes son consultables.
-- En la estación hay dos rutas para conseguir el número de casillero. Tomás debe conseguir acceso y recoger las pruebas físicas. La decisión de Mateo no bloquea el juego.
+1. Nueva partida. Avanza el diálogo inicial con E, Enter o el botón.
+2. Sigue el objetivo del panel derecho. El marcador dorado indica la ubicación; acércate y pulsa E.
+3. Hospital, casa, despacho, encargo de Rafael y exterior del cine preceden al encuentro con Brizna.
+4. Practica Q (control de Brizna), camina hacia la radio, usa Espacio y R para volver. Después habla con Elena.
+5. Investiga como Tomás, recoge pruebas físicas y abre TAB. Elige una hipótesis y las evidencias que la respaldan.
+6. Tras resolver, vuelve por la salida y funda la agencia: rincón, tablón, libreta.
+7. Conoce al siguiente cliente, elige compañero con C y acepta en el tablón. Los seis expedientes se desbloquean en orden.
 
 ## Controles
-| Tecla | Acción |
-|---|---|
-| WASD / flechas | Mover |
-| E | Interactuar |
-| Q | Alternar detective y compañero disponible |
-| Espacio | Poder en misión |
-| F | Cambiar objetivo cercano |
-| R | Volver junto a Tomás (misiones) |
-| TAB | Tablón en oficina / evidencias en misión |
-| C | Seleccionar compañero en oficina |
-| J / P | Invitar o despedir a Mateo tras resolver su caso |
-| F5 / F9 | Guardar / cargar |
-| F3 | Mostrar FPS |
-| Esc | Cerrar panel |
+WASD/flechas: caminar. E: interactuar. Q: cambiar personaje. Espacio: poder en misión. R: volver junto a Tomás. F: elegir objetivo cercano. TAB: cuaderno/tablón. C: equipo en agencia. F5/F9: guardar/cargar. Esc: pausa. F3: FPS. Ratón para botones y selección de objetos cercanos.
 
-Los paneles de selección y evidencias admiten ratón. Las teclas 1–2 seleccionan expedientes y 1–3 hipótesis; Enter presenta la conclusión.
+## Contenido y alcance
 
-## Motor visual
+- Prólogo y diálogo de encuentro, tutorial de vínculo, despedida de Elena y fundación de agencia.
+- El último boleto, La maleta sin dueño, La llave prometida, La casa de los Ruiz, El archivo ausente, El lugar que recuerda.
+- Casos con evidencias y requisitos físicos, hipótesis revisables, desbloqueos y decisiones de reclutamiento de Mateo/Nico/Mora. Tres alternativas comunitarias y tres desenlaces de Brizna.
+- En misión Tomás es el ancla móvil; la oficina es un refugio separado. Los fantasmas leen y escuchan, no recuperan recuerdos ni descubren automáticamente culpables.
+- Guardado v4 separado de los anteriores; automático al cambiar escenas y terminar diálogos. No se borran guardados antiguos.
 
-Mapa nativo de 480×264, tiles de 24×24, sprites de 24×38, escalado sin interpolación y ventana redimensionable con letterbox. Fondos, muebles, texturas, sprites y máscaras de luz generados en Python. Caché de recursos, iluminación ambiental coloreada y emisión espectral, sombras de contacto, profundidad por coordenada Y, animación por dirección e interpolación. Los muebles principales bloquean a Tomás, no a los espíritus. No se usan imágenes externas. Arte aún provisional: no equivale a sprites dibujados por un artista, ni a un motor 3D o GPU con sombras físicas.
+La implementación es una primera pasada jugable del GDD, no el acabado final. Los mapas nuevos reutilizan temas visuales, el arte es procedural, las conversaciones aún son mayormente lineales y los sistemas de herramientas, economía, rutinas, confianza, música, accesibilidad avanzada, alternativas complejas de investigación, exportación de assets, Android y migración a Godot requieren trabajo adicional. El final presenta decisiones narrativas; no simula todas sus consecuencias en juego libre.
 
-## Guardado y pruebas
-
-Se usa un nuevo archivo local .agencia_espectros_v3.json en la carpeta del usuario. El guardado v2 no se sobrescribe ni se carga automáticamente. La campaña y el render son módulos separados. Android y Godot todavía no están implementados.
-
+## Verificación
 ```
 python -m unittest discover -s demo_python -v
 python demo_python/capturas.py
 ```
-
-El segundo comando guarda capturas reales en capturas/. GitHub Actions usa SDL virtual y adjunta las capturas si las pruebas pasan. No mide el rendimiento de una PC concreta. 
+GitHub Actions ejecuta pruebas con SDL virtual y genera capturas del juego.

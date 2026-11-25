@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 import pygame as pg
 from modelo import World, CASES
+from campana import ORDER, DIALOGUES, EXTRA, NAMES
 from motor_grafico import Motor, W, H, TILE
 
 SIZE=(1280,720)
@@ -11,8 +12,8 @@ MAP_X,MAP_Y=16,64
 MAP_SIZE=(W*2,H*2)
 SIDE_X=992
 BG="#191824"; PANEL="#292638"; BORDER="#51475c"; GOLD="#e9bc83"; MINT="#b2e6d1"; INK="#e6dbcd"; MUTED="#b2a6b8"
-SAVE=Path.home()/".agencia_espectros_v3.json"
-NAMES={"office":"Agencia de espectros","cine":"Cine Aurora","station":"Estación del barrio"}
+SAVE=Path.home()/".agencia_espectros_v4.json"
+
 STATUS={"complete":"RESUELTO","provisional":"PROVISIONAL","incomplete":"INCOMPLETO"}
 
 class Game:
@@ -23,13 +24,16 @@ class Game:
         pg.display.set_caption("Agencia de espectros • El espíritu que nunca vivió")
         self.frame=pg.Surface(SIZE)
         self.motor=Motor()
-        self.world=World()
-        self.world.tell("Después del accidente, Tomás oye voces que otros no pueden escuchar. Acércate al tablón para aceptar El último boleto.")
+        self.world=World.new_game()
         self.clock=pg.time.Clock()
         self.fonts={}
         self.buttons=[]
         self.choice=None
-        self.modal=None
+        self.modal="title"
+        self.dialogue=[]
+        self.dialogue_index=0
+        self.after_dialogue=None
+        self.community=None
         self.review_case=None
         self.selected=set()
         self.hypothesis=None
@@ -77,9 +81,39 @@ class Game:
         if value>0:pg.draw.rect(self.frame,color,(x,y,max(1,round(w*min(100,value)/100)),8),border_radius=4)
     def current_target(self):
         options=self.world.nearby()
-        if self.choice not in options:self.choice=options[0] if options else None
+        if self.choice not in options:
+            goal=self.world.goal()[1]
+            self.choice=goal if goal in options else options[0] if options else None
         return self.choice
+    def autosave(self):
+        try:self.world.save(SAVE)
+        except OSError:self.world.tell("No se pudo guardar automáticamente.")
+
+    def start_game(self):
+        self.world=World.new_game();self.choice=None;self.motor.reset_motion()
+        self.open_dialogue("accident",force=True)
+
+    def open_dialogue(self,key,lines=None,after=None,force=False):
+        tag="dialogue:"+key
+        if not force and tag in self.world.visited:return False
+        lines=lines or DIALOGUES.get(key)
+        if not lines:return False
+        self.world.mark(tag)
+        self.dialogue=lines;self.dialogue_index=0;self.after_dialogue=after
+        self.modal="dialogue";self.move_clock=0.
+        return True
+
+    def next_dialogue(self):
+        self.dialogue_index+=1
+        if self.dialogue_index>=len(self.dialogue):
+            after=self.after_dialogue;self.after_dialogue=None
+            self.close_modal()
+            if after:self.modal=after
+            self.autosave()
+
     def open_cases(self):
+        if self.world.place=="office" and self.world.stage!="agency":
+            self.world.tell("Sigue el objetivo de la introducción. El tablón se desbloquea al fundar la agencia.");return
         self.modal="cases";self.result="";self.move_clock=0.
     def open_evidence(self,case=None):
         self.review_case=case or self.world.place
@@ -92,30 +126,79 @@ class Game:
     def interact(self,power=False):
         w=self.world;k=self.current_target()
         if k is None:w.tell("Acércate a un objeto o a un personaje.");return
-        if w.place=="office" and k=="board" and not power and not w.ghost_mode:
+        if w.place=="office" and w.stage=="agency" and k=="board" and not power and not w.ghost_mode:
             self.open_cases();return
-        old=w.place
-        w.act(k,power)
+        old=w.place;old_stage=w.stage;old_fact=set(w.facts.get(old,{}))
+        obj=w.objects[k]
+        result=w.act(k,power)
         if old!=w.place:self.choice=None;self.motor.reset_motion()
+        if power:return
+        key=old+":"+k
+        lines=DIALOGUES.get(key)
+        if old=="cine" and k=="client" and "request" not in w.facts[old]:lines=None
+        if k=="witness" and old in CASES and "witness" not in w.facts[old]:lines=None
+        if k=="client" and old in EXTRA and "request" in w.facts[old]:lines=EXTRA[old]["intro"]
+        if k.startswith("request_") and not w.ghost_mode:
+            case=k[len("request_"):]
+            lines=DIALOGUES.get("office:guest") if case=="station" else EXTRA[case]["intro"]
+        if k.startswith("guest_") and not w.ghost_mode:
+            case=k[len("guest_"):]
+            self.review_case=case
+            name=obj[2].split(",")[0]
+            lines=[(name,"Gracias por aclarar lo que pasó. Me gustaría decidir qué hacer ahora."),("Tomás","Aquí tienes un lugar si deseas colaborar. También puedes partir.")]
+            self.open_dialogue(key,lines,after="ally",force=True);return
+        if k=="wish" and "wish" in w.facts.get(old,{}):lines=[("Brizna","Quiero decidir qué hago después. No quiero que el cine decida por mí."),("Tomás","Te escucho.")]
+        if k=="mora":lines=[("Brizna","Mora nos mira y mueve la cola hacia el archivo."),("Tomás","Veamos qué hay allí. No significa que ya sepamos la respuesta.")]
+        if old=="office" and old_stage=="foundation" and w.stage=="agency":
+            lines=[("Tomás","El tablón, la libreta y tu rincón están listos. Agencia de espectros."),("Brizna","¡Nuestra casa! ¿Podemos ayudar a otros?")]
+        if old!=w.place and w.place=="office" and w.stage=="foundation":
+            self.open_dialogue("foundation",force=False)
+        elif lines:self.open_dialogue(key,lines)
+        elif obj[3] in ("npc","ghost") and old in CASES and old_fact!=set(w.facts[old]):
+            self.open_dialogue(key,[(obj[2].split(",")[0],result)])
+        if old!=w.place or old_stage!=w.stage:self.autosave()
+
     def action(self,action):
         w=self.world
         if isinstance(action,tuple):
             kind,value=action
+            if kind=="ally":
+                self.world.decide_ally(self.review_case,value);self.close_modal();self.autosave();return
+            if kind=="community":self.community=value;return
+            if kind=="ending" and self.community:
+                w.choose_ending(self.community,value);self.close_modal();self.autosave();self.modal="credits";return
             if kind=="accept":
                 old=w.place
                 self.result=w.accept_case(value)
-                if old!=w.place:self.close_modal();self.choice=None;self.motor.reset_motion()
+                if old!=w.place:self.close_modal();self.choice=None;self.motor.reset_motion();self.autosave()
             elif kind=="review":self.open_evidence(value)
             elif kind=="clue":
                 if value in self.selected:self.selected.remove(value)
                 else:self.selected.add(value)
             elif kind=="choice":self.hypothesis=value
             return
+        if action=="new":self.start_game();return
+        if action=="continue":
+            try:
+                self.world=World.load(SAVE);self.choice=None;self.motor.reset_motion();self.close_modal()
+                if self.world.reports.get("final")=="complete" and not self.world.ending:self.modal="ending"
+            except (OSError,ValueError,TypeError,KeyError) as ex:self.result="No se pudo cargar: "+str(ex)
+            return
+        if action=="quit":self.running=False;return
+        if action=="next_dialogue":self.next_dialogue();return
+        if action=="pause":self.modal="pause";return
+        if action=="save_pause":self.autosave();self.result="Partida guardada.";return
+        if action=="title":self.modal="title";return
         if action=="close":self.close_modal();return
         if action=="cases":self.open_cases();return
         if action=="submit":
             if self.hypothesis is None:self.result="Elige primero una hipótesis."
-            else:self.result=w.resolve(self.review_case,self.hypothesis,list(self.selected))
+            else:
+                case=self.review_case;before=w.reports.get(case)
+                self.result=w.resolve(case,self.hypothesis,list(self.selected))
+                if before!="complete" and w.reports.get(case)=="complete":
+                    self.open_dialogue(case+":closing",DIALOGUES.get(case+":closing") or EXTRA[case]["closing"],after="ending" if case=="final" else None,force=True)
+                    self.autosave()
             return
         if self.modal:return
         if action=="e":self.interact()
@@ -127,13 +210,13 @@ class Game:
             if cs:self.choice=cs[(cs.index(k)+1)%len(cs)]
         elif action=="tab":
             if w.place=="office":self.open_cases()
-            else:self.open_evidence()
+            elif w.place in CASES:self.open_evidence()
+            else:w.tell("Sigue el objetivo de la introducción.")
         elif action=="c":
             names=list(w.spirits)
             w.choose_spirit(names[(names.index(w.active)+1)%len(names)])
             self.motor.reset_motion()
-        elif action=="j":w.recruit()
-        elif action=="p":w.release_guest()
+
         elif action=="f5":
             try:w.save(SAVE);w.tell("Partida guardada.")
             except OSError as e:w.tell("No se pudo guardar: "+str(e))
@@ -170,14 +253,20 @@ class Game:
         if e.type!=pg.KEYDOWN:return
         key=pg.key.name(e.key)
         if self.modal:
-            if e.key in (pg.K_ESCAPE,pg.K_TAB):self.close_modal()
-            elif self.modal=="cases" and e.key in (pg.K_1,pg.K_2):
-                self.action(("accept",("cine","station")[e.key-pg.K_1]))
+            if self.modal=="dialogue":
+                if e.key in (pg.K_RETURN,pg.K_SPACE,pg.K_e):self.next_dialogue()
+                return
+            if self.modal=="title":
+                if e.key==pg.K_RETURN:self.start_game()
+                return
+            if e.key in (pg.K_ESCAPE,pg.K_TAB) and self.modal not in ("ending","credits"):self.close_modal()
+            elif self.modal=="cases" and pg.K_1<=e.key<=pg.K_6:
+                self.action(("accept",ORDER[e.key-pg.K_1]))
             elif self.modal=="evidence" and e.key in (pg.K_1,pg.K_2,pg.K_3):
                 self.action(("choice",e.key-pg.K_1))
             elif self.modal=="evidence" and e.key==pg.K_RETURN:self.action("submit")
             return
-        if e.key==pg.K_ESCAPE:self.open_cases() if self.world.place=="office" else self.open_evidence();return
+        if e.key==pg.K_ESCAPE:self.modal="pause";return
         self.action(key)
 
     def update(self,dt,keys=None):
@@ -196,10 +285,10 @@ class Game:
         w=self.world
         self.buttons.clear();self.frame.fill(BG)
         self.text("AGENCIA DE ESPECTROS",18,15,29,GOLD,True)
-        self.text(NAMES[w.place],438,18,23,MINT,True)
-        self.text("REFUGIO / PREPARACIÓN" if w.place=="office" else "INVESTIGACIÓN ACTIVA",994,20,20,MUTED)
+        self.text("Agencia de espectros" if w.place=="office" and w.stage=="agency" else NAMES[w.place],438,18,23,MINT,True)
+        self.text("REFUGIO" if w.place=="office" and w.stage=="agency" else "INVESTIGACIÓN" if w.place in CASES else "PRÓLOGO",994,20,20,MUTED)
         self.panel((12,60,MAP_SIZE[0]+8,MAP_SIZE[1]+8),"#292533")
-        scene=self.motor.draw(w,0. if self.modal else dt,self.current_target())
+        scene=self.motor.draw(w,0. if self.modal else dt,self.current_target(),w.goal()[1])
         self.frame.blit(pg.transform.scale(scene,MAP_SIZE),(MAP_X,MAP_Y))
         self.draw_hud()
         self.draw_log()
@@ -210,72 +299,116 @@ class Game:
     def draw_hud(self):
         w=self.world;x=SIDE_X
         self.panel((x,64,272,528))
-        self.text("CONTROL",x+15,79,19,GOLD,True)
+        self.text("OBJETIVO ACTUAL",x+15,79,20,GOLD,True)
+        goal,target=w.goal()
+        self.wrap(goal,x+15,108,242,24,INK,True,5)
+        if target in w.objects:
+            name=w.objects[target][2]
+            self.wrap("Busca: "+name,x+15,223,240,19,MINT,limit=2)
+            self.text("Marcador dorado en el mapa",x+15,267,16,MUTED)
+        self.text("CONTROL",x+15,304,18,GOLD,True)
+        self.text(w.active if w.ghost_mode else "Tomás",x+15,327,27,INK,True)
         portrait=self.motor.get_sprite(w.active if w.ghost_mode else "Tomás",w.ghost_mode,"down",0,False)
-        self.frame.blit(pg.transform.scale(portrait,(48,76)),(x+12,100))
-        self.text(w.active if w.ghost_mode else "Tomás",x+70,109,27,INK,True)
-        self.text("Espíritu" if w.ghost_mode else "Detective",x+70,138,20,MUTED)
+        self.frame.blit(pg.transform.scale(portrait,(48,76)),(x+202,308))
         if w.companion_present:
-            self.text(f"{w.active}  ·  Vínculo {w.spirit.bond}",x+15,185,22,MINT,True)
-            self.text(f"Energía {int(w.spirit.energy)}/100",x+15,210,18)
-            self.bar(x+15,231,242,w.spirit.energy,"#76b9aa")
-            self.text(f"Estabilidad {int(w.spirit.stability)}/100",x+15,248,18)
-            self.bar(x+15,269,242,w.spirit.stability,"#b19bd2")
-            if w.place=="office":self.text("Refugio: sin límite de distancia",x+15,286,18,MINT)
-            else:
-                color="#edb68c" if w.distance>w.spirit.radius else MINT
-                self.text(f"Distancia {w.distance} / {w.spirit.radius} casillas",x+15,286,18,color)
-        else:self.wrap("Sin compañero disponible aquí. El primer expediente te espera.",x+15,184,240,20,MUTED,limit=4)
-        pg.draw.line(self.frame,BORDER,(x+15,316),(x+257,316))
-        if w.place=="office":
-            self.text("CENTRO DE OPERACIONES",x+15,330,18,GOLD,True)
-            self.wrap("Acércate al tablón para aceptar una misión. Descansa, prepara y elige compañeros aquí.",x+15,353,240,19,INK,limit=4)
-            self.text("Equipo: "+", ".join(n for n,s in w.spirits.items() if s.bond) if w.home_open else "Agencia en preparación",x+15,443,17,MINT)
-            if w.reports.get("station")=="complete" and not w.guest_decision:self.wrap("J: invitar a Mateo / P: despedirse",x+15,468,240,17,MUTED,limit=2)
-        else:
-            self.text("EXPEDIENTE ACTIVO",x+15,330,18,GOLD,True)
-            self.wrap(w.case["title"],x+15,354,240,24,INK,True,2)
-            self.text(f"{len(w.facts[w.place])} pistas · {len(w.physical[w.place])} físicas",x+15,405,19,MINT)
-            self.text(STATUS.get(w.reports.get(w.place),"ABIERTO"),x+15,431,18,GOLD)
-            self.wrap("Reúne pruebas y abre el tablero para formular tu conclusión.",x+15,455,240,19,MUTED,limit=3)
-        self.button((x+15,535,242,40),"TAB · EXPEDIENTES","tab",accent=True)
+            self.text(f"{w.active} · Vínculo {w.spirit.bond}",x+15,362,19,MINT,True)
+            self.text(f"Energía {int(w.spirit.energy)}/100",x+15,387,18)
+            self.bar(x+15,410,242,w.spirit.energy,"#76b9aa")
+            self.text(f"Estabilidad {int(w.spirit.stability)}/100",x+15,427,18)
+            self.bar(x+15,450,242,w.spirit.stability,"#b19bd2")
+            self.text("Refugio libre" if w.place=="office" else f"Distancia {w.distance}/{w.spirit.radius} casillas",x+15,470,18,MINT)
+        else:self.wrap("WASD o flechas: moverte. E: hablar o examinar.",x+15,376,237,21,MUTED,limit=4)
+        enabled=w.place in CASES or (w.place=="office" and w.stage=="agency")
+        self.button((x+15,535,242,40),"TAB · EXPEDIENTES","tab",enabled,True)
     def draw_log(self):
         w=self.world;k=self.current_target()
         self.panel((16,605,960,99))
         self.text("INTERACCIÓN",29,614,18,GOLD,True)
-        self.wrap(w.objects[k][2] if k else "Acércate a un objeto o personaje",29,636,263,23,INK,True,2)
+        self.wrap(w.objects[k][2] if k else "Acércate al marcador dorado",29,636,263,23,INK,True,2)
         self.button((29,668,112,27),"E · USAR","e")
-        self.button((148,668,143,27),"ESP · PODER","space",w.place!="office" and w.companion_present)
+        self.button((148,668,143,27),"ESP · PODER","space",w.place in CASES and w.companion_present)
         self.text("BITÁCORA",312,614,18,GOLD,True)
-        for i,msg in enumerate(w.log[-2:]):
-            self.wrap(msg,312,636+i*31,650,19,INK if i==len(w.log[-2:])-1 else MUTED,limit=1)
+        if w.log:self.wrap(w.log[-1],312,636,650,20,INK,limit=3)
         self.panel((SIDE_X,605,272,99))
         self.text("WASD · Mover   Q · Cambiar",SIDE_X+11,615,18)
         self.text("F · Objetivo   R · Regresar",SIDE_X+11,638,18)
         self.text("C · Equipo   F5/F9 · Guardar",SIDE_X+11,661,17,MUTED)
         self.text("F3 · FPS",SIDE_X+11,682,16,MUTED)
     def draw_modal(self):
-        overlay=pg.Surface(SIZE,pg.SRCALPHA);overlay.fill((10,9,17,205));self.frame.blit(overlay,(0,0))
+        overlay=pg.Surface(SIZE,pg.SRCALPHA);overlay.fill((10,9,17,85 if self.modal=="dialogue" else 205));self.frame.blit(overlay,(0,0))
         # Underlying buttons are not active while the modal is open.
         self.buttons.clear()
-        self.panel((170,45,940,630),"#242232","#827186",10)
+        if self.modal!="dialogue":self.panel((170,45,940,630),"#242232","#827186",10)
+        if self.modal=="title":
+            self.text("AGENCIA DE ESPECTROS",640,140,55,GOLD,True,True)
+            self.text("El espíritu que nunca vivió",640,205,31,MINT,False,True)
+            self.text("Una aventura de investigación",640,258,25,MUTED,False,True)
+            self.button((470,320,340,50),"NUEVA PARTIDA","new",accent=True)
+            self.button((470,382,340,50),"CONTINUAR","continue",SAVE.exists())
+            self.button((470,444,340,50),"SALIR","quit")
+            if self.result:self.wrap(self.result,235,535,810,22,GOLD)
+            self.text("Prototipo Python 0.5",640,625,19,MUTED,False,True)
+            return
+        if self.modal=="dialogue":
+            self.panel((197,395,886,255),"#292738","#b39b87")
+            speaker,line=self.dialogue[self.dialogue_index]
+            isghost=speaker in ("Brizna","Elena","Mateo","Silvia","Nico","Clara","Mora","Silueta")
+            if speaker!="Narrador":
+                portrait=self.motor.get_sprite(speaker,isghost,"down",0,False)
+                self.frame.blit(pg.transform.scale(portrait,(96,152)),(226,425))
+            self.text(speaker,354,422,29,GOLD,True)
+            self.wrap(line,354,467,674,27,INK,limit=4)
+            self.text(f"{self.dialogue_index+1}/{len(self.dialogue)}",354,603,18,MUTED)
+            self.button((804,595,247,40),"CONTINUAR · E / ENTER","next_dialogue",accent=True)
+            return
+        if self.modal=="pause":
+            self.text("PAUSA",640,130,40,GOLD,True,True)
+            self.button((470,220,340,45),"VOLVER AL JUEGO","close",accent=True)
+            self.button((470,278,340,45),"GUARDAR PARTIDA","save_pause")
+            self.button((470,336,340,45),"MENÚ PRINCIPAL","title")
+            self.button((470,394,340,45),"SALIR","quit")
+            self.wrap("WASD / flechas: mover · E: interactuar · Q: cambiar · Espacio: poder · R: volver · TAB: cuaderno · F: objetivo cercano",250,485,780,23,MUTED)
+            if self.result:self.text(self.result,250,570,23,MINT)
+            return
+        if self.modal=="ally":
+            name={"station":"Mateo","workshop":"Nico","ruiz":"Mora"}[self.review_case]
+            self.text("UNA NUEVA ETAPA",640,150,40,GOLD,True,True)
+            self.wrap(name+" puede elegir quedarse en el refugio o partir. No es una obligación ni una condición para seguir investigando.",280,220,720,29,INK)
+            self.button((325,372,630,52),"OFRECERLE UN LUGAR EN LA AGENCIA",("ally",True),accent=True)
+            self.button((325,444,630,52),"DESPEDIRNOS CON RESPETO",("ally",False))
+            return
+        if self.modal=="ending":
+            self.text("EL FUTURO DEL CINE",194,63,34,GOLD,True)
+            self.wrap("El informe demuestra que hay alternativas viables. Elige qué propuesta apoyar y escucha el futuro que Brizna desea.",194,113,875,25,INK)
+            for i,name in enumerate(("centro cultural","archivo","traslado")):
+                self.button((220+i*290,222,275,50),name.upper(),("community",name),True,self.community==name)
+            self.text("Brizna quiere elegir...",194,322,28,MINT,True)
+            for i,(label,value) in enumerate((("Quedarme con la agencia","agencia"),("Explorar nuevos lugares","explorar"),("Colaborar de otra manera","colaborar"))):
+                self.button((365,371+i*65,550,49),label,("ending",value),self.community is not None,True)
+            return
+        if self.modal=="credits":
+            self.text("EL ESPÍRITU QUE NUNCA VIVIÓ",640,145,40,GOLD,True,True)
+            self.wrap("Seis expedientes resueltos. La comunidad apoya "+self.world.community_choice+". Brizna decide "+self.world.ending+".",275,230,730,28,INK)
+            self.wrap("No necesita haber vivido antes para tener una historia propia.",275,350,730,28,MINT)
+            self.button((450,485,380,50),"VOLVER AL JUEGO","close",accent=True)
+            return
         self.button((982,62,110,31),"CERRAR","close")
         if self.modal=="cases":
             self.text("TABLÓN DE LA AGENCIA",194,63,31,GOLD,True)
-            self.wrap("Selecciona una investigación disponible. Para salir a una misión, Tomás debe estar junto al tablón.",194,103,875,22,MUTED)
-            for i,(case,cfg) in enumerate(CASES.items()):
-                y=169+i*176
+            self.wrap("Habla con el cliente, elige tu compañero con C y acepta junto al tablón.",194,103,875,22,MUTED)
+            for i,case in enumerate(ORDER):
+                cfg=CASES[case];y=156+i*71
                 enabled=self.world.available(case)
                 complete=self.world.reports.get(case)=="complete"
-                near=self.world.place=="office" and not self.world.ghost_mode and "board" in self.world.nearby()
-                self.panel((194,y,892,151),"#312c40")
-                self.text(f"0{i+1} / "+cfg["title"],212,y+13,29,INK,True)
-                self.text("ARCHIVADO" if complete else "DISPONIBLE" if enabled else "BLOQUEADO",212,y+46,18,MINT if enabled else MUTED,True)
-                self.wrap(cfg["client"] if enabled else "Resuelve el primer expediente para desbloquearlo.",212,y+70,560,22,INK,limit=3)
-                self.button((806,y+23,258,40),"REVISAR EXPEDIENTE",("review",case),enabled)
-                self.button((806,y+79,258,40),("CONTINUAR" if case in self.world.accepted else "ACEPTAR CASO"),("accept",case),enabled and not complete and near,True)
-            if self.result:self.wrap(self.result,194,541,875,22,GOLD,limit=3)
-            else:self.wrap("1 / 2: elegir caso disponible · Esc: volver. Los expedientes sin resolver conservan sus pruebas cuando regresas.",194,541,875,22,MUTED,limit=3)
+                near=self.world.place=="office" and self.world.stage=="agency" and not self.world.ghost_mode and "board" in self.world.nearby()
+                self.panel((194,y,892,64),"#312c40")
+                self.text(f"0{i+1} / "+cfg["title"],208,y+8,25,INK,True)
+                label="ARCHIVADO" if complete else "DISPONIBLE" if enabled and case in self.world.requests else "HABLA CON EL CLIENTE" if enabled else "BLOQUEADO"
+                self.text(label,208,y+36,17,MINT if enabled else MUTED)
+                self.button((665,y+13,190,36),"REVISAR",("review",case),enabled)
+                self.button((865,y+13,207,36),("CONTINUAR" if case in self.world.accepted else "ACEPTAR"),("accept",case),enabled and not complete and near and case in self.world.requests,True)
+            if self.result:self.wrap(self.result,194,594,875,21,GOLD,limit=2)
+            else:self.text("Teclas 1–6: elegir · Esc: volver",194,603,21,MUTED)
             return
         case=self.review_case;cfg=CASES[case];w=self.world
         self.text(cfg["title"].upper(),194,63,31,GOLD,True)

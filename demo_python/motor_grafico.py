@@ -7,7 +7,8 @@ import math
 import random
 from dataclasses import dataclass
 import pygame as pg
-from modelo import WIDTH, HEIGHT, WALLS, FURNITURE
+from modelo import WIDTH, HEIGHT, WALLS, FURNITURE, CASES
+from campana import THEMES
 
 TILE=24
 W,H=WIDTH*TILE,HEIGHT*TILE
@@ -74,6 +75,8 @@ def seat(s,x,y,station=False):
 
 def build_map(place):
     s=pg.Surface((W,H))
+    actual=place
+    place=THEMES.get(place,place)
     floor,alternate,wall,trim,highlight=PALETTES[place]
     s.fill(wall)
     rng=random.Random({"cine":13,"office":43,"station":71}[place])
@@ -132,9 +135,9 @@ def build_map(place):
         # Clock in the non-walkable wall strip.
         ellipse(s,"#bfaa83",230,2,17,17);ellipse(s,"#dad1b7",232,4,13,13)
         line(s,"#5e5254",(238,10),(238,5));line(s,"#5e5254",(238,10),(242,12))
-    for x,y in sorted(FURNITURE[place]):
+    for x,y in sorted(FURNITURE[actual]):
         if place!="office":seat(s,x*TILE,y*TILE,place=="station")
-    if place!="office":
+    if actual in CASES:
         for x,y in sorted(WALLS):
             px,py=x*TILE,y*TILE
             rect(s,"#211f2b",px+4,py+2,20,24)
@@ -152,7 +155,7 @@ def light_mask(place):
         for x in range(small.get_width()):
             px,py=x*4,y*4
             values=[118.,119.,140.]
-            for lx,ly,radius,color in LIGHTS[place]:
+            for lx,ly,radius,color in LIGHTS[THEMES.get(place,place)]:
                 d=math.hypot(px-lx,py-ly)
                 if d<radius:
                     f=(1-d/radius)**1.45
@@ -332,7 +335,7 @@ class Motor:
         sprite=self.get_sprite(name,ghost,m.direction,frame,weak)
         self.scene.blit(sprite,(cx-12,cy-25))
         return cx,cy
-    def draw(self,w,dt=0.,target=None):
+    def draw(self,w,dt=0.,target=None,goal=None):
         dt=max(0.,min(.15,dt));self.time+=dt
         if self.place!=w.place:self.place=w.place;self.reset_motion()
         self.load_map(w.place);self.scene.blit(self.maps[w.place],(0,0))
@@ -363,7 +366,9 @@ class Motor:
                 x,y,name,kind=o;cx,cy=x*TILE+12,y*TILE+12
                 if kind in ("npc","ghost"):
                     name=name.split(",")[0]
-                    if k=="guest" and w.guest_decision=="stayed" and w.active=="Mateo":continue
+                    if k=="wish":
+                        if w.active=="Brizna":
+                            self.scene.blit(self.get_prop("home",k,False),(cx-16,cy-20));continue
                     cx,cy=self.actor(k,x,y,name,kind=="ghost",dt,k=="guest" and not w.guest_decision)
                     labels.append((cx,cy-29,name,kind=="ghost"))
                     if kind=="ghost":glows.append((cx,cy-5))
@@ -387,6 +392,10 @@ class Motor:
             p=text.get_rect(midbottom=(cx,max(11,cy)))
             rect(self.scene,"#292633",p.x-2,p.y-1,p.w+4,p.h+2)
             self.scene.blit(text,p)
+        if goal in w.objects:
+            x,y,*_=w.objects[goal];cx=x*TILE+12;cy=y*TILE+12
+            py=cy-30+round(math.sin(self.time*5)*2)
+            poly(self.scene,"#edc481",[(cx,py),(cx-5,py-7),(cx+5,py-7)])
         if target in w.objects:
             x,y,*_=w.objects[target]
             px,py=x*TILE+1,y*TILE+1
