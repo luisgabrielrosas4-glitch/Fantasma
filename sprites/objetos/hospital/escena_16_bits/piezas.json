@@ -1,0 +1,945 @@
+{
+  "escala_de_referencia": 4,
+  "unidad_de_capa": "pixel nativo",
+  "piezas": {
+    "tablon_enmarcado": {
+      "archivo": "pared/tablon_enmarcado.png",
+      "tamano_px": [
+        22,
+        18
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        30,
+        47
+      ]
+    },
+    "dispensador_pared": {
+      "archivo": "pared/dispensador_pared.png",
+      "tamano_px": [
+        14,
+        21
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        56,
+        46
+      ]
+    },
+    "puerta_ambar": {
+      "archivo": "arquitectura/puerta_ambar.png",
+      "tamano_px": [
+        21,
+        31
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        10,
+        30
+      ],
+      "origen_en_escena_px": [
+        83,
+        31
+      ]
+    },
+    "reloj": {
+      "archivo": "pared/reloj.png",
+      "tamano_px": [
+        15,
+        15
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        111,
+        24
+      ]
+    },
+    "estanteria_recepcion": {
+      "archivo": "mobiliario/estanteria_recepcion.png",
+      "tamano_px": [
+        40,
+        36
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        20,
+        34
+      ],
+      "origen_en_escena_px": [
+        132,
+        27
+      ],
+      "retocado": true
+    },
+    "archivador_alto": {
+      "archivo": "mobiliario/archivador_alto.png",
+      "tamano_px": [
+        18,
+        30
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        9,
+        29
+      ],
+      "origen_en_escena_px": [
+        171,
+        36
+      ],
+      "retocado": true
+    },
+    "planta_colgante": {
+      "archivo": "plantas/planta_colgante.png",
+      "tamano_px": [
+        19,
+        27
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        172,
+        23
+      ],
+      "retocado": true
+    },
+    "tablon_avisos_verde": {
+      "archivo": "pared/tablon_avisos_verde.png",
+      "tamano_px": [
+        23,
+        18
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        201,
+        47
+      ]
+    },
+    "ascensor": {
+      "archivo": "arquitectura/ascensor.png",
+      "tamano_px": [
+        40,
+        36
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        20,
+        35
+      ],
+      "origen_en_escena_px": [
+        228,
+        42
+      ],
+      "retocado": true
+    },
+    "boton_ascensor": {
+      "archivo": "pared/boton_ascensor.png",
+      "tamano_px": [
+        9,
+        15
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        270,
+        53
+      ]
+    },
+    "escalera": {
+      "archivo": "arquitectura/escalera.png",
+      "tamano_px": [
+        42,
+        72
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        21,
+        71
+      ],
+      "origen_en_escena_px": [
+        297,
+        5
+      ],
+      "retocado": true
+    },
+    "carro_botellas": {
+      "archivo": "mobiliario/carro_botellas.png",
+      "tamano_px": [
+        24,
+        23
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        12,
+        22
+      ],
+      "origen_en_escena_px": [
+        35,
+        67
+      ]
+    },
+    "carro_cajonero": {
+      "archivo": "mobiliario/carro_cajonero.png",
+      "tamano_px": [
+        26,
+        37
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        13,
+        35
+      ],
+      "origen_en_escena_px": [
+        350,
+        46
+      ]
+    },
+    "papelera_medica": {
+      "archivo": "mobiliario/papelera_medica.png",
+      "tamano_px": [
+        14,
+        20
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        7,
+        18
+      ],
+      "origen_en_escena_px": [
+        377,
+        61
+      ]
+    },
+    "silla_espera_amarilla": {
+      "archivo": "mobiliario/silla_espera_amarilla.png",
+      "tamano_px": [
+        16,
+        20
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        8,
+        18
+      ],
+      "origen_en_escena_px": [
+        266,
+        108
+      ],
+      "retocado": true
+    },
+    "silla_espera_verde": {
+      "archivo": "mobiliario/silla_espera_verde.png",
+      "tamano_px": [
+        17,
+        20
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        8,
+        18
+      ],
+      "origen_en_escena_px": [
+        283,
+        108
+      ],
+      "retocado": true
+    },
+    "dispensador_agua": {
+      "archivo": "mobiliario/dispensador_agua.png",
+      "tamano_px": [
+        16,
+        35
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        8,
+        34
+      ],
+      "origen_en_escena_px": [
+        339,
+        92
+      ]
+    },
+    "planta_suelo": {
+      "archivo": "plantas/planta_suelo.png",
+      "tamano_px": [
+        25,
+        35
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        12,
+        33
+      ],
+      "origen_en_escena_px": [
+        356,
+        92
+      ],
+      "retocado": true
+    },
+    "tomas": {
+      "archivo": "personajes/tomas.png",
+      "tamano_px": [
+        15,
+        28
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        7,
+        26
+      ],
+      "origen_en_escena_px": [
+        147,
+        92
+      ]
+    },
+    "ventana_doble": {
+      "archivo": "arquitectura/ventana_doble.png",
+      "tamano_px": [
+        33,
+        15
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        39,
+        139
+      ]
+    },
+    "ventana_consulta": {
+      "archivo": "arquitectura/ventana_consulta.png",
+      "tamano_px": [
+        31,
+        15
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        242,
+        140
+      ]
+    },
+    "panel_tomas_clinicas": {
+      "archivo": "pared/panel_tomas_clinicas.png",
+      "tamano_px": [
+        33,
+        12
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        78,
+        147
+      ]
+    },
+    "cortina_clinica": {
+      "archivo": "mobiliario/cortina_clinica.png",
+      "tamano_px": [
+        53,
+        68
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        26,
+        67
+      ],
+      "origen_en_escena_px": [
+        105,
+        138
+      ],
+      "retocado": true
+    },
+    "flores": {
+      "archivo": "plantas/flores.png",
+      "tamano_px": [
+        13,
+        19
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        6,
+        18
+      ],
+      "origen_en_escena_px": [
+        31,
+        154
+      ]
+    },
+    "mesita_clinica": {
+      "archivo": "mobiliario/mesita_clinica.png",
+      "tamano_px": [
+        20,
+        26
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        10,
+        25
+      ],
+      "origen_en_escena_px": [
+        29,
+        168
+      ],
+      "retocado": true
+    },
+    "monitor_ecg": {
+      "archivo": "mobiliario/monitor_ecg.png",
+      "tamano_px": [
+        21,
+        36
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        10,
+        35
+      ],
+      "origen_en_escena_px": [
+        55,
+        159
+      ]
+    },
+    "cama_clinica": {
+      "archivo": "mobiliario/cama_clinica.png",
+      "tamano_px": [
+        31,
+        55
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        15,
+        54
+      ],
+      "origen_en_escena_px": [
+        78,
+        163
+      ]
+    },
+    "soporte_suero": {
+      "archivo": "mobiliario/soporte_suero.png",
+      "tamano_px": [
+        14,
+        41
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        7,
+        40
+      ],
+      "origen_en_escena_px": [
+        109,
+        155
+      ]
+    },
+    "dispensador_estrecho": {
+      "archivo": "pared/dispensador_estrecho.png",
+      "tamano_px": [
+        10,
+        15
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        165,
+        162
+      ]
+    },
+    "placa_primeros_auxilios": {
+      "archivo": "pared/placa_primeros_auxilios.png",
+      "tamano_px": [
+        10,
+        13
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        222,
+        162
+      ]
+    },
+    "puerta_doble_azul": {
+      "archivo": "arquitectura/puerta_doble_azul.png",
+      "tamano_px": [
+        45,
+        38
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        22,
+        37
+      ],
+      "origen_en_escena_px": [
+        176,
+        135
+      ]
+    },
+    "taburete_blanco": {
+      "archivo": "mobiliario/taburete_blanco.png",
+      "tamano_px": [
+        16,
+        19
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        8,
+        17
+      ],
+      "origen_en_escena_px": [
+        36,
+        202
+      ]
+    },
+    "ecografo": {
+      "archivo": "mobiliario/ecografo.png",
+      "tamano_px": [
+        28,
+        46
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        14,
+        44
+      ],
+      "origen_en_escena_px": [
+        241,
+        158
+      ]
+    },
+    "panel_diagnostico": {
+      "archivo": "pared/panel_diagnostico.png",
+      "tamano_px": [
+        38,
+        24
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        280,
+        144
+      ]
+    },
+    "camilla_exploracion": {
+      "archivo": "mobiliario/camilla_exploracion.png",
+      "tamano_px": [
+        60,
+        31
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        30,
+        29
+      ],
+      "origen_en_escena_px": [
+        276,
+        166
+      ],
+      "retocado": true
+    },
+    "taburete_azul": {
+      "archivo": "mobiliario/taburete_azul.png",
+      "tamano_px": [
+        19,
+        24
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        9,
+        23
+      ],
+      "origen_en_escena_px": [
+        310,
+        189
+      ]
+    },
+    "gabinete_vidriado": {
+      "archivo": "mobiliario/gabinete_vidriado.png",
+      "tamano_px": [
+        54,
+        26
+      ],
+      "anclaje": "colgar",
+      "pivote_px": [
+        0,
+        0
+      ],
+      "origen_en_escena_px": [
+        338,
+        141
+      ],
+      "retocado": true
+    },
+    "lavabo_clinico": {
+      "archivo": "mobiliario/lavabo_clinico.png",
+      "tamano_px": [
+        52,
+        32
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        26,
+        31
+      ],
+      "origen_en_escena_px": [
+        339,
+        167
+      ],
+      "retocado": true
+    },
+    "jabonera": {
+      "archivo": "accesorios/jabonera.png",
+      "tamano_px": [
+        8,
+        12
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        4,
+        11
+      ],
+      "origen_en_escena_px": [
+        357,
+        166
+      ]
+    },
+    "carrito_medicamentos": {
+      "archivo": "mobiliario/carrito_medicamentos.png",
+      "tamano_px": [
+        32,
+        27
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        16,
+        26
+      ],
+      "origen_en_escena_px": [
+        269,
+        198
+      ]
+    },
+    "papelera_tapa_verde": {
+      "archivo": "mobiliario/papelera_tapa_verde.png",
+      "tamano_px": [
+        15,
+        20
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        7,
+        19
+      ],
+      "origen_en_escena_px": [
+        374,
+        205
+      ],
+      "retocado": true
+    },
+    "terminal_pantalla_frontal": {
+      "archivo": "accesorios/terminal_pantalla_frontal.png",
+      "tamano_px": [
+        17,
+        13
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        8,
+        12
+      ],
+      "origen_en_escena_px": [
+        109,
+        55
+      ]
+    },
+    "terminal_pantalla_lateral": {
+      "archivo": "accesorios/terminal_pantalla_lateral.png",
+      "tamano_px": [
+        16,
+        10
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        8,
+        9
+      ],
+      "origen_en_escena_px": [
+        141,
+        60
+      ]
+    },
+    "lector_tarjetas": {
+      "archivo": "accesorios/lector_tarjetas.png",
+      "tamano_px": [
+        10,
+        11
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        5,
+        10
+      ],
+      "origen_en_escena_px": [
+        91,
+        62
+      ]
+    },
+    "expedientes_verticales": {
+      "archivo": "accesorios/expedientes_verticales.png",
+      "tamano_px": [
+        21,
+        16
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        10,
+        14
+      ],
+      "origen_en_escena_px": [
+        160,
+        58
+      ]
+    },
+    "enfermera": {
+      "archivo": "personajes/enfermera.png",
+      "tamano_px": [
+        17,
+        24
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        8,
+        23
+      ],
+      "origen_en_escena_px": [
+        124,
+        44
+      ]
+    },
+    "mostrador_curvo_vacio": {
+      "archivo": "mobiliario/mostrador_curvo_vacio.png",
+      "tamano_px": [
+        124,
+        34
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        62,
+        28
+      ],
+      "origen_en_escena_px": [
+        74,
+        54
+      ],
+      "retocado": true
+    },
+    "baldosa_clara": {
+      "archivo": "pisos/baldosa_clara.png",
+      "tamano_px": [
+        16,
+        16
+      ],
+      "anclaje": "repetir",
+      "pivote_px": [
+        0,
+        0
+      ]
+    },
+    "baldosa_clara_variacion": {
+      "archivo": "pisos/baldosa_clara_variacion.png",
+      "tamano_px": [
+        16,
+        16
+      ],
+      "anclaje": "repetir",
+      "pivote_px": [
+        0,
+        0
+      ]
+    },
+    "baldosa_carril_azul": {
+      "archivo": "pisos/baldosa_carril_azul.png",
+      "tamano_px": [
+        16,
+        16
+      ],
+      "anclaje": "repetir",
+      "pivote_px": [
+        0,
+        0
+      ]
+    },
+    "baldosa_carril_borde": {
+      "archivo": "pisos/baldosa_carril_borde.png",
+      "tamano_px": [
+        16,
+        16
+      ],
+      "anclaje": "repetir",
+      "pivote_px": [
+        0,
+        0
+      ]
+    },
+    "muro_hospital_horizontal": {
+      "archivo": "arquitectura/muro_hospital_horizontal.png",
+      "tamano_px": [
+        16,
+        16
+      ],
+      "anclaje": "repetir",
+      "pivote_px": [
+        0,
+        0
+      ]
+    },
+    "corona_muro_horizontal": {
+      "archivo": "arquitectura/corona_muro_horizontal.png",
+      "tamano_px": [
+        16,
+        16
+      ],
+      "anclaje": "repetir",
+      "pivote_px": [
+        0,
+        0
+      ]
+    },
+    "corona_muro_vertical": {
+      "archivo": "arquitectura/corona_muro_vertical.png",
+      "tamano_px": [
+        16,
+        16
+      ],
+      "anclaje": "repetir",
+      "pivote_px": [
+        0,
+        0
+      ]
+    },
+    "remate_de_muro": {
+      "archivo": "arquitectura/remate_de_muro.png",
+      "tamano_px": [
+        16,
+        16
+      ],
+      "anclaje": "repetir",
+      "pivote_px": [
+        0,
+        0
+      ]
+    },
+    "pasamanos_mural": {
+      "archivo": "pared/pasamanos_mural.png",
+      "tamano_px": [
+        48,
+        16
+      ],
+      "anclaje": "repetir",
+      "pivote_px": [
+        0,
+        0
+      ]
+    },
+    "botella_azul": {
+      "archivo": "accesorios/botella_azul.png",
+      "tamano_px": [
+        7,
+        9
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        3,
+        7
+      ],
+      "origen_en_escena_px": [
+        39,
+        67
+      ]
+    },
+    "botella_transparente": {
+      "archivo": "accesorios/botella_transparente.png",
+      "tamano_px": [
+        8,
+        12
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        4,
+        11
+      ],
+      "origen_en_escena_px": [
+        354,
+        46
+      ]
+    },
+    "caja_amarilla": {
+      "archivo": "accesorios/caja_amarilla.png",
+      "tamano_px": [
+        9,
+        8
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        4,
+        7
+      ],
+      "origen_en_escena_px": [
+        364,
+        50
+      ]
+    },
+    "frasco_rojo": {
+      "archivo": "accesorios/frasco_rojo.png",
+      "tamano_px": [
+        7,
+        10
+      ],
+      "anclaje": "apoyar",
+      "pivote_px": [
+        3,
+        8
+      ],
+      "origen_en_escena_px": [
+        285,
+        198
+      ]
+    }
+  }
+}
