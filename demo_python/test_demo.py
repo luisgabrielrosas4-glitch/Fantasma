@@ -57,7 +57,7 @@ def practice(w):
     assert w.practice_done,w.log
 
 def accept(w,case):
-    if case=="cine" and w.stage=="dispatch":return prologue(w)
+    if case=="cine" and w.stage in ("hospital","dispatch"):return prologue(w)
     go(w,"request_"+case);near(w,"board");w.accept_case(case)
     assert w.place==case,w.log
     return w
