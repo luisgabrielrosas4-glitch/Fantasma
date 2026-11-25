@@ -21,8 +21,7 @@ MAPS = {
   "home": (4,3,"Mesa de Brizna","home"),
   "board": (8,3,"Archivo de expedientes","board"),
   "guest": (14,6,"Mateo, espíritu errante","ghost"),
-  "station": (18,8,"Salir a la estación","exit"),
-  "cinema": (2,8,"Regresar al cine","exit")},
+  "station": (18,8,"Puerta de la agencia","door")},
  "station": {
   "client": (3,3,"Mateo","ghost"),
   "guard": (7,7,"Inés, encargada","npc"),
@@ -67,6 +66,15 @@ CASES = {
   "complete":["desk","item","schedule","photo"]}
 }
 WALLS = {(10,y) for y in range(1,10) if y!=5}
+FURNITURE = {
+    "cine": {(x,y) for x in (4,5,6) for y in (6,8)},
+    "office": {(x,y) for x in (6,7,8) for y in (6,7)},
+    "station": {(x,6) for x in (3,4,5)}
+}
+def blocked(place,x,y,permission=False,distraction=0):
+    if not (1<=x<WIDTH-1 and 1<=y<HEIGHT-1):return True
+    if (x,y) in FURNITURE[place]:return True
+    return place!="office" and ((x,y) in WALLS or ((x,y)==(10,5) and not (permission or distraction>0)))
 
 @dataclass
 class Spirit:
@@ -99,11 +107,11 @@ class Spirit:
 
 @dataclass
 class World:
-    place: str = "cine"
-    x: int = 2
-    y: int = 6
-    gx: int = 5
-    gy: int = 4
+    place: str = "office"
+    x: int = 4
+    y: int = 5
+    gx: int = 4
+    gy: int = 3
     ghost_mode: bool = False
     met: bool = False
     home_open: bool = False
@@ -119,6 +127,7 @@ class World:
     wanderer: Spirit = field(default_factory=lambda: Spirit("Mateo","station",energy=30,stability=45,errant=True,power="sound"))
     guest_decision: str = ""
     guest_clock: float = 0
+    accepted: list = field(default_factory=list)
 
     @property
     def spirit(self):
@@ -129,17 +138,30 @@ class World:
         return (self.gx,self.gy) if self.ghost_mode else (self.x,self.y)
 
     @property
+    def companion_present(self):
+        return self.met and (self.place!="office" or self.spirit.bond>0)
+
+    @property
     def anchor(self):
-        if self.spirit.home and self.place=="office":
-            return (4,3)
-        if self.spirit.bond:
-            return (self.x,self.y)
-        return (5,4) if self.place==self.spirit.origin else (self.x,self.y)
+        # Solo las misiones tienen un ancla espacial. El hogar es toda la agencia.
+        return None if self.place=="office" else (self.x,self.y)
 
     @property
     def distance(self):
+        if self.anchor is None:return 0
         a,b=self.anchor
         return abs(self.gx-a)+abs(self.gy-b)
+
+    def available(self,case):
+        return case in CASES and (case=="cine" or self.home_open)
+
+    def accept_case(self,case):
+        if self.place!="office" or self.ghost_mode or "board" not in self.nearby():
+            return self.tell("Tomás debe aceptar el caso junto al tablón de la agencia.")
+        if not self.available(case):return self.tell("Expediente aún no disponible.")
+        if self.reports.get(case)=="complete":return self.tell("Este expediente está archivado.")
+        if case not in self.accepted:self.accepted.append(case)
+        return self.travel(case)
 
     @property
     def objects(self):
@@ -147,7 +169,8 @@ class World:
         if self.place=="cine" and self.met:result.pop("brizna",None)
         if self.place in CASES and self.reports.get(self.place)=="complete":result.pop("client",None)
         if self.place=="office":
-            if self.guest_decision=="departed":result.pop("guest",None)
+            if not self.home_open:result.pop("guest",None)
+            elif self.guest_decision=="departed":result.pop("guest",None)
             elif self.guest_decision!="stayed":
                 route=[(14,6),(15,6),(15,7),(14,7)]
                 x,y=route[int(self.guest_clock//3)%len(route)]
@@ -169,16 +192,19 @@ class World:
         if self.home_open and not self.guest_decision:
             self.guest_clock+=dt
             self.wanderer.update(0,dt)
-        if self.met:
-            at_home=self.place=="office" and self.distance<=self.spirit.radius
-            self.spirit.update(self.distance,dt,at_home)
-            if not self.ghost_mode and self.spirit.bond and self.place!="office":
-                self.gx,self.gy=self.x,self.y
-            if self.spirit.stability<=0:
-                self.gx,self.gy=self.anchor
-                self.ghost_mode=False
-                self.spirit.stability=20
-                self.tell(self.active+" se debilitó y regresó a su ancla.")
+        if self.place=="office":
+            # Toda la oficina es un refugio, sin alcance, desgaste ni poderes de misión.
+            for spirit in self.spirits.values():
+                if spirit.bond:spirit.update(0,dt,True)
+            return
+        if not self.companion_present:return
+        if not self.ghost_mode:self.gx,self.gy=self.x,self.y
+        self.spirit.update(self.distance,dt)
+        if self.spirit.stability<=0:
+            self.gx,self.gy=self.anchor
+            self.ghost_mode=False
+            self.spirit.stability=20
+            self.tell(self.active+" se debilitó y regresó junto a Tomás.")
 
     def move(self,dx,dy):
         if abs(dx)+abs(dy)!=1:return False
@@ -186,40 +212,47 @@ class World:
         x,y=x+dx,y+dy
         if not (1<=x<WIDTH-1 and 1<=y<HEIGHT-1):return False
         if self.ghost_mode:
-            a,b=self.anchor
-            new_dist=abs(x-a)+abs(y-b)
-            if new_dist>self.spirit.radius+3 and new_dist>=self.distance:return False
-            if self.spirit.stability<20 and new_dist>self.distance:return False
+            if not self.companion_present:return False
+            if self.place!="office":
+                a,b=self.anchor
+                new_dist=abs(x-a)+abs(y-b)
+                if new_dist>self.spirit.radius+3 and new_dist>=self.distance:return False
+                if self.spirit.stability<20 and new_dist>self.distance:return False
             self.gx,self.gy=x,y
         else:
-            if self.place!="office":
-                if (x,y) in WALLS:return False
-                if (x,y)==(10,5) and not (self.permissions[self.place] or self.distracted>0):return False
+            if blocked(self.place,x,y,self.permissions.get(self.place,False),self.distracted):return False
             self.x,self.y=x,y
-            if self.met and self.spirit.bond and self.place!="office":
-                self.gx,self.gy=x,y
+            if self.companion_present and self.place!="office":self.gx,self.gy=x,y
         return True
 
     def toggle(self):
-        if not self.met:return self.tell("Primero conoce a Brizna en el cine.")
+        if not self.companion_present:return self.tell("Aún no tienes un compañero aquí.")
         self.ghost_mode=not self.ghost_mode
+        if not self.ghost_mode and self.place!="office":self.gx,self.gy=self.x,self.y
         return self.tell("Control: "+(self.active if self.ghost_mode else "Tomás"))
 
     def recall(self):
-        if not self.met:return self.tell("Aún no tienes compañero.")
-        self.gx,self.gy=self.anchor
+        if not self.companion_present:return self.tell("Aún no tienes compañero aquí.")
         self.ghost_mode=False
-        return self.tell(self.active+" regresó a su ancla.")
+        if self.place=="office":return self.tell("En la agencia los espíritus se mueven libremente.")
+        self.gx,self.gy=self.anchor
+        return self.tell(self.active+" regresó junto a Tomás.")
 
-    def travel(self, destination):
+    def travel(self,destination):
         if self.ghost_mode:return self.tell("Tomás debe desplazarse físicamente.")
         if destination not in MAPS:return self.tell("Destino desconocido.")
-        if not self.home_open:return self.tell("Primero termina el asunto de Elena en el cine.")
+        if destination=="office":
+            if self.place=="office" or "exit" not in self.nearby():return self.tell("Usa la salida de la misión.")
+        elif self.place!="office" or destination not in self.accepted or not self.available(destination) or "board" not in self.nearby():
+            return self.tell("Selecciona el expediente desde la agencia.")
         self.place=destination
         self.x,self.y=(4,5) if destination=="office" else (2,6)
         self.gx,self.gy=(4,3) if destination=="office" else (self.x,self.y)
         self.distracted=0
         self.ghost_mode=False
+        if destination=="office":
+            for spirit in self.spirits.values():
+                if spirit.bond:spirit.home=True
         return self.tell("Llegaste a "+{"cine":"el cine","office":"la agencia","station":"la estación"}[destination]+".")
 
     def choose_spirit(self,name):
@@ -258,23 +291,24 @@ class World:
             return self.tell(self.active+" activa el dispositivo. La puerta queda libre "+str(int(self.distracted))+" segundos.")
         if self.place=="office":
             if key=="home":
+                if not self.companion_present:return self.tell("Un rincón vacío. Tal vez algún día sea el hogar de un espíritu.")
                 self.spirit.home=True
                 self.spirit.energy=100
                 self.spirit.stability=100
-                return self.tell("Este lugar se siente como un hogar. Ancla de la agencia restaurada.")
+                return self.tell("Brizna y los aliados se sienten en casa. Aquí no hay un límite de distancia.")
             if ghost:return self.tell("Tomás debe encargarse de esto.")
             if key=="guest":
                 if "Mateo" in self.spirits:return self.tell("Mateo ya pertenece a la agencia.")
                 if self.reports.get("station")=="complete":
                     return self.tell("Mateo: Gracias. Pulsa J para invitarme a quedarme o P para despedirnos.")
                 return self.tell("Mateo: Llevo mucho tiempo vagando. Necesito saber qué pasó con mi maleta.")
-            if key=="station":return self.travel("station")
-            if key=="cinema":return self.travel("cine")
-            return self.tell("Abre el tablero con TAB para revisar expedientes.")
+            if key=="station":return self.tell("Antes de salir, acepta una investigación en el tablón.")
+            return self.tell("Selecciona un expediente en el tablón de la agencia.")
         if key=="brizna":
             if ghost:return self.tell("Brizna está contigo.")
             self.met=True
-            return self.tell("Brizna nació aquí, de las emociones del cine. Aún no puede irse lejos.")
+            self.gx,self.gy=self.x,self.y
+            return self.tell("Brizna nació de las emociones del cine. Te acompaña gracias a un vínculo provisional.")
         if key=="client":
             return self.add_fact("request")
         if key=="witness":
@@ -307,6 +341,7 @@ class World:
     def resolve(self,case,choice,selected):
         if self.ghost_mode:return self.tell("Tomás debe formular y presentar la conclusión.")
         if case not in CASES:return self.tell("Expediente desconocido.")
+        if self.place!=case or case not in self.accepted:return self.tell("Presenta la conclusión durante la investigación activa.")
         if self.reports.get(case)=="complete":return self.tell("Este expediente ya quedó resuelto.")
         if case=="station" and not self.home_open:return self.tell("Expediente aún no disponible.")
         cfg=CASES[case]
@@ -345,13 +380,13 @@ class World:
     def save(self,path):
         path=Path(path)
         tmp=path.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"version":2,"world":asdict(self)},ensure_ascii=False),encoding="utf-8")
+        tmp.write_text(json.dumps({"version":3,"world":asdict(self)},ensure_ascii=False),encoding="utf-8")
         tmp.replace(path)
 
     @classmethod
     def load(cls,path):
         data=json.loads(Path(path).read_text(encoding="utf-8"))
-        if data.get("version")!=2:raise ValueError("Guardado antiguo. Inicia una nueva partida.")
+        if data.get("version")!=3:raise ValueError("Guardado anterior. Inicia una partida de esta versión.")
         d=data["world"]
         d["spirits"]={k:Spirit(**v) for k,v in d["spirits"].items()}
         d["wanderer"]=Spirit(**d["wanderer"])
