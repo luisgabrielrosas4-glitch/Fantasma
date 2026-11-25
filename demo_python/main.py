@@ -1,4 +1,4 @@
-"""Agencia de espectros 0.5.1 — prototipo Pygame-ce para validar antes de Godot."""
+"""Agencia de espectros 0.5.2 — prototipo Pygame-ce para validar antes de Godot."""
 import os
 import math
 from pathlib import Path
@@ -6,6 +6,7 @@ import pygame as pg
 from modelo import World, CASES
 from campana import ORDER, DIALOGUES, EXTRA, NAMES
 from motor_grafico import Motor, W, H, TILE
+from arte import TitleArt
 
 SIZE=(1280,720)
 MAP_X,MAP_Y=16,64
@@ -26,6 +27,8 @@ class Game:
         pg.display.set_caption("Agencia de espectros • El espíritu que nunca vivió")
         self.frame=pg.Surface(SIZE)
         self.motor=Motor()
+        self.title_art=None
+        self.title_font=pg.font.SysFont("georgia,dejavuserif,serif",49,bold=True)
         self.world=World.new_game()
         self.clock=pg.time.Clock()
         self.fonts={}
@@ -219,6 +222,12 @@ class Game:
             except (OSError,ValueError,TypeError,KeyError) as ex:self.result="No se pudo cargar: "+str(ex)
             return
         if action=="quit":self.running=False;return
+        if action=="options":self.modal="options";return
+        if action=="window":
+            self.screen=pg.display.set_mode((960,540),pg.RESIZABLE);return
+        if action=="fullscreen":
+            flag=0 if self.screen.get_flags() & pg.FULLSCREEN else pg.FULLSCREEN
+            self.screen=pg.display.set_mode((0,0) if flag else (1120,630),flag or pg.RESIZABLE);return
         if action=="next_dialogue":
             now=pg.time.get_ticks()
             if now-self.last_advance>=180:self.last_advance=now;self.next_dialogue()
@@ -300,6 +309,9 @@ class Game:
             if self.modal=="title":
                 if e.key==pg.K_RETURN:self.start_game()
                 return
+            if self.modal=="options":
+                if e.key==pg.K_ESCAPE:self.modal="title"
+                return
             if e.key in (pg.K_ESCAPE,pg.K_TAB) and self.modal not in ("ending","credits"):self.close_modal()
             elif self.modal=="cases" and pg.K_1<=e.key<=pg.K_6:
                 self.action(("accept",ORDER[e.key-pg.K_1]))
@@ -325,12 +337,14 @@ class Game:
     def draw(self,dt=0.):
         w=self.world
         self.buttons.clear();self.frame.fill(BG)
+        if self.modal in ("title","options"):
+            self.draw_title(dt);return self.frame
         self.text("AGENCIA DE ESPECTROS",18,15,29,GOLD,True)
         self.text("Agencia de espectros" if w.place=="office" and w.stage=="agency" else NAMES[w.place],438,18,23,MINT,True)
         self.text("REFUGIO" if w.place=="office" and w.stage=="agency" else "INVESTIGACIÓN" if w.place in CASES else "PRÓLOGO",994,20,20,MUTED)
         self.panel((12,60,MAP_SIZE[0]+8,MAP_SIZE[1]+8),"#292533")
-        scene=self.motor.draw(w,0. if self.modal else dt,None if self.modal=="dialogue" else self.current_target(),None if self.modal=="dialogue" else w.goal()[1])
-        self.frame.blit(pg.transform.scale(scene,MAP_SIZE),(MAP_X,MAP_Y))
+        scene=self.motor.draw(w,0. if self.modal else dt,None if self.modal=="dialogue" else self.current_target(),None if self.modal=="dialogue" else w.goal()[1],native=True)
+        self.frame.blit(scene,(MAP_X,MAP_Y))
         self.draw_hud()
         self.draw_log()
         if self.show_fps:self.text(f"FPS {self.fps:.1f}",20,42,16,MUTED)
@@ -383,21 +397,37 @@ class Game:
         self.text("Esc · Ayuda y pausa",SIDE_X+13,650,20,MINT)
         self.text("F3 · FPS",SIDE_X+13,678,17,MUTED)
 
+    def draw_title(self,dt):
+        if self.title_art is None:self.title_art=TitleArt()
+        self.frame.blit(pg.transform.scale(self.title_art.draw(dt),SIZE),(0,0))
+        if self.modal=="options":
+            self.text("OPCIONES",70,100,43,GOLD,True)
+            self.button((70,185,360,48),"VENTANA 960 × 540","window")
+            self.button((70,246,360,48),"PANTALLA COMPLETA","fullscreen")
+            self.button((70,307,360,48),"VOLVER","title",accent=True)
+            self.wrap("WASD o flechas: mover · E: interacción · Q: cambiar · R: regresar · TAB: cuaderno.",70,390,420,23,INK)
+        else:
+            self.text("SANTA BRUMA  /  EXPEDIENTE 001",72,76,20,MINT,True)
+            for i,txt in enumerate(("AGENCIA DE","ESPECTROS")):
+                im=self.title_font.render(txt,True,GOLD)
+                self.frame.blit(im,(70,121+i*58))
+            pg.draw.line(self.frame,"#bc9869",(73,248),(440,248),2)
+            self.text("El espíritu que nunca vivió",73,268,29,INK)
+            for i,(label,action,enabled) in enumerate((("NUEVA PARTIDA","new",True),("CONTINUAR","continue",SAVE.exists()),("OPCIONES","options",True),("SALIR","quit",True))):
+                box=pg.Rect(73,330+i*57,345,45)
+                self.button(box,label,action,enabled,i==0)
+                if enabled and box.collidepoint(self.logical(pg.mouse.get_pos()) or (-1,-1)):
+                    pg.draw.rect(self.frame,GOLD,box,2,border_radius=5)
+            self.wrap("Algunos casos no terminan cuando muere la víctima.",73,581,390,23,"#d8c7b5",limit=2)
+            if self.result:self.wrap(self.result,73,639,500,19,GOLD,limit=2)
+        self.text("PROTOTIPO 0.5.2",73,689,17,"#b4b6b8")
+        self.text("CINE AURORA  •  NOCHE",991,689,17,"#d9c9af")
+
     def draw_modal(self):
         overlay=pg.Surface(SIZE,pg.SRCALPHA);overlay.fill((10,9,17,85 if self.modal=="dialogue" else 205));self.frame.blit(overlay,(0,0))
         # Underlying buttons are not active while the modal is open.
         self.buttons.clear()
         if self.modal!="dialogue":self.panel((170,45,940,630),"#242232","#827186",10)
-        if self.modal=="title":
-            self.text("AGENCIA DE ESPECTROS",640,140,55,GOLD,True,True)
-            self.text("El espíritu que nunca vivió",640,205,31,MINT,False,True)
-            self.text("Una aventura de investigación",640,258,25,MUTED,False,True)
-            self.button((470,320,340,50),"NUEVA PARTIDA","new",accent=True)
-            self.button((470,382,340,50),"CONTINUAR","continue",SAVE.exists())
-            self.button((470,444,340,50),"SALIR","quit")
-            if self.result:self.wrap(self.result,235,535,810,22,GOLD)
-            self.text("Prototipo Python 0.5.1",640,625,19,MUTED,False,True)
-            return
         if self.modal=="dialogue":
             self.panel((197,395,886,255),"#292738","#b39b87")
             speaker,line=self.dialogue[self.dialogue_index]
@@ -496,7 +526,7 @@ class Game:
     def present(self):
         v=self.viewport()
         self.screen.fill("#101019")
-        self.screen.blit(pg.transform.scale(self.frame,v.size),v.topleft)
+        self.screen.blit(self.frame if v.size==SIZE else pg.transform.smoothscale(self.frame,v.size),v.topleft)
         pg.display.flip()
     def run(self):
         while self.running:

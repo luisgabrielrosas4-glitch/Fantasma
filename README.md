@@ -1,4 +1,4 @@
-# Agencia de espectros — prototipo 0.5.1
+# Agencia de espectros — prototipo 0.5.2
 
 Python 3.10+ / Pygame-ce. Rama principal; Godot se utilizará más adelante.
 
@@ -25,3 +25,7 @@ python -m unittest discover -s demo_python -v
 python demo_python/capturas.py
 ```
 Las capturas son imágenes del juego y de los mapas generadas por Pygame. GitHub Actions prueba SDL virtual. No se afirma rendimiento real ni validación artística solo por aprobar pruebas.
+
+## Pulido visual 0.5.2
+
+Menú temático independiente con fachada del Cine Aurora, lluvia y partículas animadas; opciones de ventana y pantalla completa. Sprites originales de 48×72 con identidades diferenciadas, retratos ampliados, nombres antialias a resolución de pantalla. El compañero sigue la casilla anterior de Tomás en cualquier dirección; el intercambio se anima con un rodeo lateral y una transición de opacidad si no existe paso libre. El seguimiento manual y la oficina conservan sus reglas. No cambia el formato v5 del guardado, las coordenadas ni la campaña. Arte aún procedural, sin música nueva ni recursos externos. Pruebas de regresión en cuatro direcciones, menú y composición visual.

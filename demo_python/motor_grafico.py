@@ -9,7 +9,8 @@ from dataclasses import dataclass
 import pygame as pg
 from modelo import WIDTH, HEIGHT, WALLS, FURNITURE, CASES
 from campana import THEMES
-from niveles import LEVELS
+from niveles import LEVELS, occupied
+from arte import character
 
 TILE=24
 W,H=WIDTH*TILE,HEIGHT*TILE
@@ -226,76 +227,7 @@ def glow(radius,color):
     return s
 
 def actor_sprite(name,ghost,direction="down",frame=0,weak=False):
-    """24x38 pixel sprite: silhouette, shaded clothing, directional walk."""
-    s=pg.Surface((24,38),pg.SRCALPHA)
-    if ghost:
-        if name=="Mora":
-            poly(s,"#496e74",[(3,26),(5,13),(5,7),(10,12),(15,7),(19,14),(20,26),(16,30),(6,30)])
-            poly(s,"#a6d8cc",[(5,25),(6,14),(7,10),(11,15),(15,10),(17,15),(18,26),(14,28),(7,28)])
-            rect(s,"#304651",8,17,2,3);rect(s,"#304651",14,17,2,3)
-            line(s,"#93c7b9",(17,26),(22,19),3)
-            return s
-        brizna=name=="Brizna"
-        dark="#44766f" if brizna else "#5f7297"
-        mid="#82c9b7" if brizna else ("#92aed8" if name=="Mateo" else "#b4a0cf")
-        light="#d0f9df" if brizna else "#dbe2f8"
-        if weak:mid=blend(mid,"#555e69",.45);light=blend(light,"#68717a",.45)
-        tail=frame%2
-        poly(s,dark,[(4,27),(3,16),(6,9),(10,6),(14,6),(19,10),(21,17),(20,27),(17,30),(13,27+tail),(8,31-tail)])
-        poly(s,mid,[(5,25),(5,15),(8,9),(13,8),(18,12),(20,17),(18,26),(15,28),(12,25+tail),(8,29-tail)])
-        poly(s,light,[(6,15),(8,10),(12,9),(15,10),(10,11),(8,16),(8,22),(6,23)])
-        if brizna:
-            poly(s,dark,[(7,9),(6,4),(11,7),(14,1),(17,9)])
-            poly(s,mid,[(9,8),(8,5),(12,8),(14,3),(16,8)])
-            rect(s,light,14,4,1,3)
-        else:
-            rect(s,mid,8,24,8,5);rect(s,dark,9,25,6,1)
-            if name=="Elena":rect(s,"#c6add7",5,10,3,12)
-        if direction!="up":
-            eyes= (7,13) if direction=="left" else ((10,16) if direction=="right" else (8,15))
-            for ex in eyes:rect(s,"#304651",ex,16,2,4);rect(s,light,ex,16,1,1)
-            rect(s,"#537c7b",11,23,3,1)
-        rect(s,light,5,21,1,3)
-        return s
-    # Detective and townspeople. Four directions, asymmetric highlights.
-    coat="#b38b65" if name=="Tomás" else "#d8e5dc" if name=="Enfermera" else ("#829e9b" if name=="Inés" else "#7a8b9d")
-    shade=blend(coat,"#3b3443",.45)
-    hi=blend(coat,"#eed7b4",.35)
-    skin="#d9ae90";shadow="#a87869";hair="#4b3840";ink="#302b39"
-    step=(0,-2,0,2)[frame%4]
-    rect(s,ink,7,28+max(0,step),5,7- max(0,step));rect(s,ink,13,28+max(0,-step),5,7-max(0,-step))
-    rect(s,"#56606c",8,28+max(0,step),3,5-max(0,step));rect(s,"#56606c",14,28+max(0,-step),3,5-max(0,-step))
-    rect(s,"#201e29",6,34,6,3);rect(s,"#201e29",13,34,6,3)
-    poly(s,ink,[(5,17),(9,14),(16,14),(20,17),(22,27),(18,29),(19,31),(5,31),(6,27),(2,27)])
-    poly(s,coat,[(6,18),(10,16),(15,16),(19,18),(20,26),(17,26),(18,30),(6,30),(7,26),(4,26)])
-    rect(s,shade,6,23,2,6);rect(s,shade,16,22,2,8)
-    rect(s,hi,7,18,2,4);rect(s,hi,17,18,1,4)
-    if direction!="up":
-        poly(s,"#e4d4b9",[(10,16),(15,16),(12,23)])
-        poly(s,shade,[(9,17),(12,23),(9,25),(10,20)])
-        poly(s,shade,[(16,17),(13,23),(16,25),(15,20)])
-        rect(s,"#5e4d49",12,24,1,6)
-        for yy in (25,28):rect(s,"#dfc09b",13,yy,1,1)
-    else:line(s,shade,(12,18),(12,29))
-    rect(s,shadow,3,25,3,3);rect(s,skin,19,25,2,3)
-    poly(s,ink,[(6,4),(9,1),(16,1),(19,5),(19,12),(16,16),(8,16),(5,12)])
-    poly(s,skin,[(7,5),(17,5),(18,9),(17,13),(15,15),(9,15),(7,12)])
-    rect(s,shadow,8,13,8,2)
-    rect(s,hair,6,3,12,4)
-    rect(s,"#76554e",8,2,7,2)
-    if name=="Enfermera":
-        rect(s,"#eff2e3",6,2,13,4);rect(s,"#be6c75",11,2,3,1);rect(s,"#be6c75",12,1,1,3)
-        rect(s,"#7ca8a6",8,22,3,5)
-    if name=="Tomás":
-        # Greying temples and long coat make the retired detective recognizable.
-        rect(s,"#a0998d",6,7,2,4);rect(s,"#a0998d",16,7,2,4)
-    if direction=="up":rect(s,hair,7,5,11,9);rect(s,"#76554e",8,5,9,2)
-    else:
-        eyes=(8,13) if direction=="left" else ((10,15) if direction=="right" else (9,15))
-        for ex in eyes:rect(s,ink,ex,9,2,2)
-        rect(s,shadow,11,11,2,2)
-        rect(s,"#815f5d",10,13,4,1)
-    return s
+    return character(name,ghost,direction,frame,weak)
 
 def prop_sprite(kind,key,opened=False):
     s=pg.Surface((32,32),pg.SRCALPHA)
@@ -360,6 +292,46 @@ class Motion:
         else:self.x,self.y=float(x),float(y);self.phase=0.
         return self.x,self.y
 
+class PairMotion:
+    """Interpolación visual de un paso. El intercambio usa un rodeo lateral."""
+    def __init__(self):
+        self.last=None;self.old=None;self.new=None;self.elapsed=0.;self.side=0
+    def update(self,w,dt):
+        if not w.companion_present or w.ghost_mode or w.place=="office":
+            self.last=None
+            return {}
+        pair=((w.x,w.y),(w.gx,w.gy))
+        if self.last is None or dt==0:
+            self.last=pair;self.old=self.new=pair;self.elapsed=.12
+        elif pair!=self.last:
+            self.old,self.new=self.last,pair;self.last=pair;self.elapsed=0.
+            self.side=0
+            h,g=self.old;nh,ng=self.new
+            if nh==g and ng==h:
+                dx,dy=nh[0]-h[0],nh[1]-h[1]
+                l=LEVELS[w.place];taken=occupied(w.objects)
+                for side in (1,-1):
+                    offset=(-dy*side,dx*side)
+                    cells=[(p[0]+offset[0],p[1]+offset[1]) for p in (h,nh)]
+                    if all(l.inside(p) and p not in taken for p in cells):
+                        self.side=side;break
+            if abs(nh[0]-h[0])+abs(nh[1]-h[1])>1 or abs(ng[0]-g[0])+abs(ng[1]-g[1])>2:
+                self.old=self.new;self.elapsed=.12
+        self.elapsed=min(.12,self.elapsed+dt)
+        t=self.elapsed/.12
+        h,g=self.old;nh,ng=self.new
+        pos=lambda a,b:tuple(a[i]+(b[i]-a[i])*t for i in (0,1))
+        hx,hy=pos(h,nh);gx,gy=pos(g,ng)
+        alpha=255
+        if nh==g and ng==h and h!=nh:
+            dx,dy=nh[0]-h[0],nh[1]-h[1]
+            arc=math.sin(math.pi*t)
+            if self.side:
+                gx-=dy*self.side*arc;gy+=dx*self.side*arc
+                alpha=round(255-55*arc)
+            else:alpha=round(255*(1-arc))
+        return {"human":(hx,hy,255),"companion":(gx,gy,alpha)}
+
 class Motor:
     def __init__(self):
         self.maps={};self.lights={};self.sprites={};self.props={};self.motions={}
@@ -371,7 +343,12 @@ class Motor:
         self.aura=glow(24,(20,61,48))
         self.lamp=glow(38,(55,36,12))
         self.font=pg.font.Font(None,14)
-    def reset_motion(self):self.motions.clear()
+        self.name_font=pg.font.Font(None,24)
+        self.pair=PairMotion();self.pair_positions={};self.native_actors=[]
+        self.native=False
+        self.actor_scaled={}
+        self.label_rects=[]
+    def reset_motion(self):self.motions.clear();self.pair=PairMotion()
     def load_map(self,place):
         if place not in self.maps:
             self.maps[place]=build_map(place);self.lights[place]=light_mask(place)
@@ -393,19 +370,24 @@ class Motor:
         return round(px*TILE+TILE/2),round(py*TILE+TILE/2),m
     def actor(self,identity,x,y,name,ghost,dt,weak=False,active=False):
         cx,cy,m=self.position(identity,x,y,dt)
+        alpha=255
+        slot="human" if identity.startswith("human") else "companion" if identity.startswith("companion") else None
+        if slot in self.pair_positions:
+            px,py,alpha=self.pair_positions[slot];cx,cy=round(px*TILE+12),round(py*TILE+12)
         ellipse(self.scene,"#292735",cx-8,cy+5,16,6)
         if active:pg.draw.ellipse(self.scene,MINT if ghost else "#ddbb83",(cx-11,cy+2,22,11),1)
         if ghost:cy+=round(math.sin(self.time*4+len(name))*2)
         frame=(int(self.time*3)%2 if ghost else int(m.phase)%4 if m.moving else 0)
         sprite=self.get_sprite(name,ghost,m.direction,frame,weak)
-        # Mantener la silueta dentro de la casilla evita cubrir al vecino.
-        sprite=pg.transform.scale(sprite,(17,25))
-        self.scene.blit(sprite,(cx-8,cy-17))
+        if self.native:self.native_actors.append((cx,cy,sprite,ghost,name,alpha))
+        else:self.scene.blit(pg.transform.scale(sprite,(20,30)),(cx-10,cy-23))
         return cx,cy
-    def draw(self,w,dt=0.,target=None,goal=None):
+    def draw(self,w,dt=0.,target=None,goal=None,native=False):
         dt=max(0.,min(.15,dt));self.time+=dt
         changed=self.place!=w.place
         if changed:self.place=w.place;self.reset_motion()
+        self.native=native;self.native_actors=[];self.label_rects=[]
+        self.pair_positions=self.pair.update(w,dt)
         self.load_map(w.place)
         bg=self.maps[w.place]
         if self.scene.get_size()!=bg.get_size():self.scene=pg.Surface(bg.get_size())
@@ -435,7 +417,7 @@ class Motor:
                 name=w.active if ghost else "Tomás"
                 x,y=(w.gx,w.gy) if ghost else (w.x,w.y)
                 cx,cy=self.actor(k+name,x,y,name,ghost,dt,ghost and w.spirit.stability<40,w.ghost_mode==ghost)
-                if w.ghost_mode==ghost:labels.append((cx,cy-20,name,ghost))
+                if w.ghost_mode==ghost:labels.append((cx,cy-26,name,ghost))
                 if ghost:glows.append((cx,cy-5))
             else:
                 x,y,name,kind=o;cx,cy=x*TILE+12,y*TILE+12
@@ -445,7 +427,7 @@ class Motor:
                         if w.active=="Brizna":
                             self.scene.blit(self.get_prop("home",k,False),(cx-16,cy-20));continue
                     cx,cy=self.actor(k,x,y,name,kind=="ghost",dt,k=="guest" and not w.guest_decision)
-                    if k==target or k==goal:labels.append((cx,cy-20,name,kind=="ghost"))
+                    if k==target or k==goal:labels.append((cx,cy-32 if k==goal else cy-26,name,kind=="ghost"))
                     if kind=="npc" and w.alert_value(k)>=25:
                         c="#ed9c7b" if w.alert_value(k)>=75 else "#e3c175"
                         rect(self.scene,c,cx-7,cy+10,round(14*w.alert_value(k)/100),2)
@@ -470,7 +452,7 @@ class Motor:
             self.scene.blit(self.lamp,(cx-38,cy-38),special_flags=pg.BLEND_RGB_ADD)
         # Readable names and interaction corners are not darkened.
         placed=[]
-        for cx,cy,name,ghost in labels:
+        for cx,cy,name,ghost in ([] if native else labels):
             text=self.font.render(name,False,MINT if ghost else "#efdec3")
             p=text.get_rect(midbottom=(cx,max(11,cy)))
             while any(p.inflate(4,4).colliderect(q) for q in placed):p.y-=text.get_height()+4
@@ -501,4 +483,32 @@ class Motor:
                 ex,ey=max(12,min(W-12,px)),max(12,min(H-12,py))
                 pg.draw.circle(self.view,"#e8c589",(round(ex),round(ey)),7)
                 pg.draw.circle(self.view,"#584333",(round(ex),round(ey)),3)
-        return self.view
+        if not native:return self.view
+        # Los sprites y nombres se componen después de ampliar los tiles.
+        output=pg.transform.scale(self.view,(W*2,H*2))
+        for cx,cy,sprite,ghost,name,alpha in self.native_actors:
+            size=(36,54) if ghost else (42,63)
+            k=(id(sprite),size)
+            if k not in self.actor_scaled:self.actor_scaled[k]=pg.transform.scale(sprite,size)
+            im=self.actor_scaled[k].copy()
+            if not ghost:
+                lx=max(0,min(self.lights[w.place].get_width()-1,cx))
+                ly=max(0,min(self.lights[w.place].get_height()-1,cy))
+                light=self.lights[w.place].get_at((lx,ly))
+                im.fill(tuple(min(255,int(v*.55+115)) for v in light[:3])+(255,),special_flags=pg.BLEND_RGBA_MULT)
+            if alpha<255:im.set_alpha(alpha)
+            px,py=(cx-ox)*2,(cy-oy)*2
+            output.blit(im,(px-size[0]//2,py-size[1]+12))
+        for cx,cy,name,ghost in labels:
+            px,py=(cx-ox)*2,(cy-oy)*2
+            if not (0<=px<W*2 and -8<=py<H*2):continue
+            im=self.name_font.render(name,True,MINT if ghost else "#f4e4ce")
+            r=im.get_rect(midbottom=(px,py))
+            r.x=max(4,min(W*2-r.w-4,r.x))
+            while any(r.inflate(10,6).colliderect(q) for q in self.label_rects):r.y-=r.h+7
+            if r.top<4:continue
+            self.label_rects.append(r.copy())
+            bg=pg.Surface((r.w+10,r.h+6),pg.SRCALPHA)
+            pg.draw.rect(bg,(25,25,37,220),bg.get_rect(),border_radius=5)
+            output.blit(bg,(r.x-5,r.y-3));output.blit(im,r)
+        return output

@@ -143,6 +143,23 @@ class Tests(unittest.TestCase):
         self.assertGreaterEqual(steps,30)
         w.toggle();w.recall();self.assertEqual(w.distance,1)
 
+    def test_follow_symmetric_in_four_directions(self):
+        w=prologue(World());go(w,"brizna")
+        for dx,dy in DIRS:
+            w.x,w.y=12,20
+            w.gx,w.gy=12+dx,20+dy
+            self.assertTrue(w.move(dx,dy))
+            self.assertEqual((w.gx,w.gy),(12,20))
+            self.assertEqual(w.distance,1)
+            self.assertTrue(w.move(dx,dy))
+            self.assertEqual((w.gx,w.gy),(12+dx,20+dy))
+            self.assertEqual(w.distance,1)
+            self.assertTrue(w.move(-dx,-dy))
+            self.assertEqual((w.gx,w.gy),(12+2*dx,20+2*dy))
+        w.toggle();before=(w.x,w.y)
+        w.move(0,1)
+        self.assertEqual((w.x,w.y),before)
+
     def test_spirit_range(self):
         w=prologue(World());go(w,"brizna");near(w,"radio");w.toggle()
         a,b=w.anchor

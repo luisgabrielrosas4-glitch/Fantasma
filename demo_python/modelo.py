@@ -318,8 +318,13 @@ class World:
     def follow(self,previous=None):
         if not self.companion_present or self.place=="office":return
         center=(self.x,self.y);current=(self.gx,self.gy)
+        # Al caminar, la casilla que acaba de dejar Tomás es la posición
+        # preferida. No depende del orden absoluto derecha/izquierda.
+        if previous is not None and distance(center,previous)==1 and previous not in occupied(self.objects):
+            self.gx,self.gy=previous
+            return
         if distance(center,current)==1 and current not in occupied(self.objects):return
-        self.gx,self.gy=self.adjacent(center,previous or current)
+        self.gx,self.gy=self.adjacent(center,current)
 
     def alert_enabled(self):
         return self.place in CASES and (self.place!="cine" or self.practice_done)
@@ -443,14 +448,9 @@ class World:
             leaving=(x,y) in LEVELS[self.place].restricted
             if dest in LEVELS[self.place].restricted and not leaving and not (self.access() or (self.distracted>0 and self.place!="workshop")):return False
             if blocked(self.place,*dest,self.access() or leaving,self.distracted):return False
-            if self.companion_present and dest==(self.gx,self.gy):
-                if self.place=="office":return False
-                alt=self.adjacent(dest,(x,y))
-                if alt==(x,y):
-                    alternatives=[(dest[0]+a,dest[1]+b) for a,b in DIRS if (dest[0]+a,dest[1]+b)!=(x,y)]
-                    alt=next((p for p in alternatives if LEVELS[self.place].inside(p) and p not in occupied(self.objects)),None)
-                if alt is None or alt==dest:return False
-                self.gx,self.gy=alt
+            if self.companion_present and dest==(self.gx,self.gy) and self.place=="office":return False
+            # El intercambio de posiciones en misión es atómico; el render
+            # representa un rodeo lateral en vez de cruzar los sprites.
             self.x,self.y=dest
             if self.companion_present and self.place!="office":self.follow((x,y))
         return True

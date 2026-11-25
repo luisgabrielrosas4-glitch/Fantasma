@@ -9,7 +9,10 @@ import main
 from main import Game,SIZE
 from modelo import World
 from niveles import LEVELS
-from motor_grafico import build_map,light_mask,Motor,TILE,W,H
+from motor_grafico import build_map,light_mask,Motor,PairMotion,TILE,W,H
+from arte import character,TitleArt
+from niveles import DIRS
+import math
 from test_demo import near,go,cinema,prologue,practice,station,solve_extra,ally
 
 class GraphicsTests(unittest.TestCase):
@@ -57,6 +60,47 @@ class GraphicsTests(unittest.TestCase):
             g.present()
             near(g.world,"nurse");g.choice="nurse";g.draw()
             self.assertTrue(any(a=="e" for _,a in g.buttons))
+
+    def test_title_art_and_options(self):
+        g=Game(pg.display.get_surface())
+        self.assertEqual(g.draw(.03).get_size(),SIZE)
+        self.assertEqual(g.motor.background_builds,0)
+        self.assertTrue(any(action=="options" for _,action in g.buttons))
+        a=TitleArt();first=pg.image.tobytes(a.draw(0),"RGB")
+        self.assertNotEqual(first,pg.image.tobytes(a.draw(.1),"RGB"))
+        g.action("options");g.draw()
+        self.assertTrue(any(action=="fullscreen" for _,action in g.buttons))
+        g.action("title");self.assertEqual(g.modal,"title")
+
+    def test_character_identity(self):
+        names=("Brizna","Elena","Mateo","Nico","Clara","Silvia","Mora")
+        data=[]
+        for name in names:
+            sprite=character(name,True)
+            self.assertEqual(sprite.get_size(),(48,72))
+            self.assertEqual(sprite.get_at((0,0)).a,0)
+            data.append(pg.image.tobytes(sprite,"RGBA"))
+        self.assertEqual(len(set(data)),len(names))
+        self.assertNotEqual(pg.image.tobytes(character("Tomás",False),"RGBA"),pg.image.tobytes(character("Rafael",False),"RGBA"))
+
+    def test_native_labels_and_swap_arc(self):
+        w=prologue(World());go(w,"brizna")
+        for dx,dy in DIRS:
+            w.x,w.y=12,20;w.gx,w.gy=12+dx,20+dy
+            pair=PairMotion();pair.update(w,.01)
+            self.assertTrue(w.move(dx,dy))
+            positions=pair.update(w,.06)
+            h=positions["human"];g=positions["companion"]
+            self.assertGreaterEqual(math.hypot(h[0]-g[0],h[1]-g[1]),.9)
+            positions=pair.update(w,.06)
+            self.assertEqual(positions["companion"][:2],(12.,20.))
+        m=Motor();near(w,"radio")
+        before=repr(w)
+        self.assertEqual(m.draw(w,.016,goal="radio",native=True).get_size(),(W*2,H*2))
+        self.assertEqual(repr(w),before)
+        self.assertTrue(m.label_rects)
+        for i,r in enumerate(m.label_rects):
+            self.assertFalse(any(r.colliderect(q) for q in m.label_rects[:i]))
 
     def test_modal_pauses(self):
         g=Game(pg.display.get_surface());g.start_game()
